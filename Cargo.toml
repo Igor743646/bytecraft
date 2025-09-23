@@ -10,6 +10,9 @@ repository = "https://github.com/Igor743646/bytecraft"
 keywords = ["bytecraft", "byte", "reader", "writer", "serialization"]
 categories = ["encoding"]
 license = "MIT OR Apache-2.0"
+exclude = [
+    "tests/*",
+]
 
 [lib]
 name = "bytecraft"
