@@ -2,8 +2,6 @@
 
 [![Crates.io](https://img.shields.io/crates/v/bytecraft.svg)](https://crates.io/crates/bytecraft)
 [![Documentation](https://docs.rs/bytecraft/badge.svg)](https://docs.rs/bytecraft)
-[![License](https://img.shields.io/crates/l/bytecraft.svg)](https://github.com/Igor743646/bytecraft/blob/master/LICENSE-MIT)
-[![Build Status](https://github.com/Igor743646/bytecraft/workflows/CI/badge.svg)](https://github.com/Igor743646/bytecraft/actions)
 
 A high-performance, type-safe binary data reading and writing library for Rust with compile-time endianness support and zero-cost abstractions.
 
