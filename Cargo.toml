@@ -9,6 +9,7 @@ documentation = "https://docs.rs/bytecraft"
 repository = "https://github.com/Igor743646/bytecraft"
 keywords = ["bytecraft", "byte", "reader", "writer", "serialization"]
 categories = ["encoding"]
+readme = "README.md"
 license = "MIT OR Apache-2.0"
 exclude = [
     "tests/*",
