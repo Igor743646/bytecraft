@@ -1,5 +1,11 @@
 # Change Log
 
+## 0.2.1 (24-09-2025)
+
+Bug fix:
+
+* ByteReader::read_ascii() did not advance cursor position. 
+
 ## 0.2.0 (24-09-2025)
 
 Breaking changes:

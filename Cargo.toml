@@ -1,6 +1,6 @@
 [package]
 name = "bytecraft"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Igor Glushatov <igor.743646@gmail.com>"]
 edition = "2021"
 rust-version = "1.89.0"
