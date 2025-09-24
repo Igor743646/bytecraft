@@ -388,3 +388,82 @@ fn lifetimes() -> Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn align() -> Result<()> {
+    let data: [u8; 100] = [0u8; 100];
+    let mut reader: ByteReader = ByteReader::new(&data);
+
+    for pos in 1..=4 {
+        reader.set_position(pos)?;
+        reader.align_up::<4>()?;
+        assert_eq!(reader.position(), 4);
+
+        reader.set_position(pos)?;
+        reader.align_up_dynamic(4)?;
+        assert_eq!(reader.position(), 4);
+    }
+
+    for pos in 1..=8 {
+        reader.set_position(pos)?;
+        reader.align_up::<8>()?;
+        assert_eq!(reader.position(), 8);
+
+        reader.set_position(pos)?;
+        reader.align_up_dynamic(8)?;
+        assert_eq!(reader.position(), 8);
+    }
+
+    for pos in 9..=16 {
+        reader.set_position(pos)?;
+        reader.align_up::<8>()?;
+        assert_eq!(reader.position(), 16);
+
+        reader.set_position(pos)?;
+        reader.align_up_dynamic(8)?;
+        assert_eq!(reader.position(), 16);
+    }
+
+    for pos in 1..=16 {
+        reader.set_position(pos)?;
+        reader.align_up::<16>()?;
+        assert_eq!(reader.position(), 16);
+        reader.set_position(pos)?;
+
+        reader.align_up_dynamic(16)?;
+        assert_eq!(reader.position(), 16);
+    }
+
+    assert!(reader.align_up::<1024>().is_err());
+
+    reader.align_up_force::<1024>();
+    assert_eq!(reader.position(), 100);
+
+    Ok(())
+}
+
+#[test]
+fn fmt() -> Result<()> {
+    let mut data: Vec<u8> = vec![0; 27];
+    {
+        let mut i: u8 = 0;
+        data.fill_with(|| {
+            i += 1;
+            i
+        });
+    }
+
+    let reader: ByteReader = ByteReader::new(&data);
+
+    let debug: String = format!("{:?}", reader);
+    let pdebug: String = format!("{:#?}", reader);
+    let display: String = format!("{}", reader);
+
+    assert_eq!(debug, "ByteReader { data: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27], pos: 0, endian: Endian(Native) }");
+    assert_eq!(pdebug, "ByteReader {\n    data: [\n        1,\n        2,\n        3,\n        4,\n        5,\n        6,\n        7,\n        8,\n        9,\n        10,\n        11,\n        12,\n        13,\n        14,\n        15,\n        16,\n        17,\n        18,\n        19,\n        20,\n        21,\n        22,\n        23,\n        24,\n        25,\n        26,\n        27,\n    ],\n    pos: 0,\n    endian: Endian(Native),\n}");
+    assert_eq!(display, "\n                  00 01 02 03 04 05 06 07  08 09 0A 0B 0C 0D 0E 0F  10 11 12 13 14 15 16 17  18 19 1A 1B 1C 1D 1E 1F\n0000000000000000: 01 02 03 04 05 06 07 08  09 0a 0b 0c 0d 0e 0f 10  11 12 13 14 15 16 17 18  19 1a 1b ");
+
+    println!("{}", display);
+
+    Ok(())
+}

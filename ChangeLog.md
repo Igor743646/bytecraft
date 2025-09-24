@@ -1,5 +1,26 @@
 # Change Log
 
+## 0.2.2 (24-09-2025)
+
+New features:
+
+* Add align functions for ByteReader:
+    * align_up::\<ALIGNMENT\>(&mut self) -> Result<()>
+    * align_up_force::\<ALIGNMENT\>(&mut self)
+    * align_up_dynamic(&mut self, alignment: usize) -> Result<()>
+
+```rust
+let data: [u8; 100] = [0u8; 100];
+let mut reader: ByteReader = ByteReader::new(&data);
+
+reader.set_position(1)?;
+reader.align_up::<4>()?;
+assert_eq!(reader.position(), 4);
+```
+
+* Add Debug and Display traits implementations for ByteReader:
+* Change ByteReader::read_ascii() result value to &str. Add peek_ascii().
+
 ## 0.2.1 (24-09-2025)
 
 Bug fix:
