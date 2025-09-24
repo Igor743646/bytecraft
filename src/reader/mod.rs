@@ -84,8 +84,8 @@
 //!     y: i32,
 //! }
 //!
-//! impl Readable for Point {
-//!     fn read<T: AsRef<[u8]>>(mut stream: ReadStream<T>) -> Result<Self> {
+//! impl<'a> Readable<'a> for Point {
+//!     fn read<'r>(mut stream: ReadStream<'a, 'r>) -> Result<Self> {
 //!         Ok(Point {
 //!             x: stream.read()?,
 //!             y: stream.read()?,
@@ -177,39 +177,37 @@ use readable::Readable;
 ///
 /// ```rust
 /// use std::borrow::Cow;
+/// use std::borrow::Borrow;
 /// use bytecraft::common::Endian;
 /// use bytecraft::reader::ByteReader;
 ///
 /// let slice: [u8; 10] = [0u8; 10];
-/// let reader: ByteReader<_> = ByteReader::new(&slice);
-/// let reader: ByteReader<_> = ByteReader::new(slice);
+/// let reader: ByteReader = ByteReader::new(&slice);
 ///
 /// let vec: Vec<u8> = Vec::new();
-/// let reader: ByteReader<_> = ByteReader::new(&vec);
-/// let reader: ByteReader<_> = ByteReader::new(vec);
+/// let reader: ByteReader = ByteReader::new(&vec);
 ///
 /// let string: String = String::new();
-/// let reader: ByteReader<_> = ByteReader::new(&string);
-/// let reader: ByteReader<_> = ByteReader::new(string);
+/// let reader: ByteReader = ByteReader::new(string.as_bytes());
 ///
 /// let vec: Vec<u8> = Vec::new();
 /// let cow: Cow<'_, [u8]> = Cow::Borrowed(&vec);
-/// let reader: ByteReader<_> = ByteReader::new(cow);
+/// let reader: ByteReader = ByteReader::new(cow.borrow());
 ///
 /// let cow: Cow<'_, [u8]> = Cow::Owned(vec);
-/// let reader: ByteReader<_> = ByteReader::new(cow);
+/// let reader: ByteReader = ByteReader::new(cow.borrow());
 /// ```
 ///
 /// See the [module-level documentation](self) for comprehensive examples.
 ///
-#[derive(Debug, Eq, Hash)]
-pub struct ByteReader<T: AsRef<[u8]>> {
-    data: T,
+#[derive(Hash)]
+pub struct ByteReader<'a> {
+    data: &'a [u8],
     pos: usize,
     endian: Endian,
 }
 
-impl<T: AsRef<[u8]>> ByteReader<T> {
+impl<'a> ByteReader<'a> {
     /// Creates a new `ByteReader` with [Endian::Native] parameter.
     ///
     /// Initializes a reader positioned at the beginning of the data with
@@ -230,11 +228,11 @@ impl<T: AsRef<[u8]>> ByteReader<T> {
     /// use bytecraft::common::Endian;
     ///
     /// let data = [1, 2, 3, 4];
-    /// let reader = ByteReader::new(data);
+    /// let reader = ByteReader::new(&data);
     /// assert_eq!(reader.position(), 0);
     /// assert_eq!(reader.endian(), Endian::Native);
     /// ```
-    pub fn new(data: T) -> Self {
+    pub fn new(data: &'a [u8]) -> Self {
         Self {
             data,
             pos: 0,
@@ -264,7 +262,7 @@ impl<T: AsRef<[u8]>> ByteReader<T> {
     /// let data = [0x12, 0x34];
     /// let reader = ByteReader::with_endian(&data[..], Endian::Big);
     /// ```
-    pub fn with_endian(data: T, endian: Endian) -> Self {
+    pub fn with_endian(data: &'a [u8], endian: Endian) -> Self {
         Self {
             data,
             pos: 0,
@@ -286,7 +284,7 @@ impl<T: AsRef<[u8]>> ByteReader<T> {
     /// ```rust
     /// use bytecraft::{reader::ByteReader, common::Endian};
     ///
-    /// let reader = ByteReader::new([0u8; 4]);
+    /// let reader = ByteReader::new(&[0u8; 4]);
     /// assert_eq!(reader.endian(), Endian::Native);
     /// ```
     pub fn endian(&self) -> Endian {
@@ -307,7 +305,7 @@ impl<T: AsRef<[u8]>> ByteReader<T> {
     /// ```rust
     /// use bytecraft::{reader::ByteReader, common::Endian};
     ///
-    /// let mut reader = ByteReader::new([0x01, 0x00, 0x00, 0x02]);
+    /// let mut reader = ByteReader::new(&[0x01, 0x00, 0x00, 0x02]);
     /// reader.set_endian(Endian::Little);
     /// let v1: u16 = reader.read().unwrap();
     /// reader.set_endian(Endian::Big);
@@ -332,7 +330,7 @@ impl<T: AsRef<[u8]>> ByteReader<T> {
     /// ```rust
     /// use bytecraft::reader::ByteReader;
     ///
-    /// let mut reader = ByteReader::new([1, 2, 3, 4]);
+    /// let mut reader = ByteReader::new(&[1, 2, 3, 4]);
     /// assert_eq!(reader.position(), 0);
     ///
     /// reader.read::<u8>().unwrap();
@@ -361,7 +359,7 @@ impl<T: AsRef<[u8]>> ByteReader<T> {
     /// ```rust
     /// use bytecraft::reader::ByteReader;
     ///
-    /// let mut reader = ByteReader::new([1, 2, 3, 4]);
+    /// let mut reader = ByteReader::new(&[1, 2, 3, 4]);
     /// reader.set_position(2).unwrap();
     /// assert_eq!(reader.position(), 2);
     ///
@@ -400,7 +398,7 @@ impl<T: AsRef<[u8]>> ByteReader<T> {
     /// ```rust
     /// use bytecraft::reader::ByteReader;
     ///
-    /// let mut reader = ByteReader::new([1, 2, 3, 4, 5]);
+    /// let mut reader = ByteReader::new(&[1, 2, 3, 4, 5]);
     /// assert_eq!(reader.position(), 0);
     ///
     /// reader.skip(2).unwrap();
@@ -437,7 +435,7 @@ impl<T: AsRef<[u8]>> ByteReader<T> {
     /// ```
     /// use bytecraft::reader::ByteReader;
     ///
-    /// let mut reader = ByteReader::new([1, 2, 3, 4, 5]);
+    /// let mut reader = ByteReader::new(&[1, 2, 3, 4, 5]);
     /// reader.skip_force(10); // More than available
     /// assert_eq!(reader.position(), 5); // Clamped to end
     /// ```
@@ -460,7 +458,7 @@ impl<T: AsRef<[u8]>> ByteReader<T> {
     /// ```rust
     /// use bytecraft::reader::ByteReader;
     ///
-    /// let mut reader = ByteReader::new([1, 2, 3, 4, 5]);
+    /// let mut reader = ByteReader::new(&[1, 2, 3, 4, 5]);
     /// reader.set_position(3).unwrap();
     ///
     /// reader.rewind(1);
@@ -496,7 +494,7 @@ impl<T: AsRef<[u8]>> ByteReader<T> {
     /// ```
     /// use bytecraft::reader::ByteReader;
     ///
-    /// let mut reader = ByteReader::new([1, 2, 3, 4, 5]);
+    /// let mut reader = ByteReader::new(&[1, 2, 3, 4, 5]);
     /// reader.set_position(3).unwrap();
     /// reader.rewind_force(10); // More than current position
     /// assert_eq!(reader.position(), 0); // Clamped to start
@@ -524,7 +522,7 @@ impl<T: AsRef<[u8]>> ByteReader<T> {
     /// ```rust
     /// use bytecraft::{reader::ByteReader, common::SeekFrom};
     ///
-    /// let mut reader = ByteReader::new([1, 2, 3, 4, 5]);
+    /// let mut reader = ByteReader::new(&[1, 2, 3, 4, 5]);
     ///
     /// // Seek to absolute position
     /// reader.seek(SeekFrom::Start(2)).unwrap();
@@ -588,7 +586,7 @@ impl<T: AsRef<[u8]>> ByteReader<T> {
     /// ```rust
     /// use bytecraft::reader::ByteReader;
     ///
-    /// let mut reader = ByteReader::new([1, 2, 3, 4]);
+    /// let mut reader = ByteReader::new(&[1, 2, 3, 4]);
     /// reader.read::<u8>().unwrap(); // Move position to 1
     /// assert_eq!(reader.position(), 1);
     ///
@@ -618,8 +616,8 @@ impl<T: AsRef<[u8]>> ByteReader<T> {
     ///
     /// assert_eq!(reader.as_slice(), &[1, 2, 3, 4, 5]);
     /// ```
-    pub fn as_slice(&self) -> &[u8] {
-        self.data.as_ref()
+    pub fn as_slice(&self) -> &'a [u8] {
+        &self.data
     }
 
     /// Consumes the reader and returns the underlying data.
@@ -637,13 +635,13 @@ impl<T: AsRef<[u8]>> ByteReader<T> {
     /// use bytecraft::reader::ByteReader;
     ///
     /// let original_data = vec![1, 2, 3, 4];
-    /// let reader = ByteReader::new(original_data.clone());
+    /// let reader = ByteReader::new(&original_data);
     ///
     /// // After processing, get the data back
     /// let data = reader.into_inner();
     /// assert_eq!(data, original_data);
     /// ```
-    pub fn into_inner(self) -> T {
+    pub fn into_inner(self) -> &'a [u8] {
         self.data
     }
 
@@ -661,12 +659,12 @@ impl<T: AsRef<[u8]>> ByteReader<T> {
     /// ```rust
     /// use bytecraft::reader::ByteReader;
     ///
-    /// let mut reader = ByteReader::new([1, 2, 3, 4, 5]);
+    /// let mut reader = ByteReader::new(&[1, 2, 3, 4, 5]);
     /// reader.read::<u8>().unwrap(); // Move position to 1
     /// assert_eq!(reader.len(), 5);
     /// ```
     pub fn len(&self) -> usize {
-        self.data.as_ref().len()
+        self.data.len()
     }
 
     /// Returns a slice of the remaining unread data.
@@ -683,14 +681,14 @@ impl<T: AsRef<[u8]>> ByteReader<T> {
     /// ```rust
     /// use bytecraft::reader::ByteReader;
     ///
-    /// let mut reader = ByteReader::new([1, 2, 3, 4, 5]);
+    /// let mut reader = ByteReader::new(&[1, 2, 3, 4, 5]);
     /// reader.skip(2).unwrap(); // Skip first 2 bytes
     ///
     /// let remaining = reader.rest_bytes();
     /// assert_eq!(remaining, &[3, 4, 5]);
     /// ```
-    pub fn rest_bytes(&self) -> &[u8] {
-        &self.data.as_ref()[self.pos..]
+    pub fn rest_bytes(&self) -> &'a [u8] {
+        &self.data[self.pos..]
     }
 
     /// Returns the number of bytes remaining to be read.
@@ -707,7 +705,7 @@ impl<T: AsRef<[u8]>> ByteReader<T> {
     /// ```rust
     /// use bytecraft::reader::ByteReader;
     ///
-    /// let mut reader = ByteReader::new([1, 2, 3, 4, 5]);
+    /// let mut reader = ByteReader::new(&[1, 2, 3, 4, 5]);
     /// assert_eq!(reader.rest_len(), 5);
     ///
     /// reader.skip(2).unwrap();
@@ -755,7 +753,7 @@ impl<T: AsRef<[u8]>> ByteReader<T> {
     /// ```rust
     /// use bytecraft::reader::ByteReader;
     ///
-    /// let mut reader = ByteReader::new([1, 2]);
+    /// let mut reader = ByteReader::new(&[1, 2]);
     /// assert!(!reader.is_eof()); // At position 0
     ///
     /// reader.skip(2).unwrap(); // Move to end
@@ -779,10 +777,9 @@ impl<T: AsRef<[u8]>> ByteReader<T> {
     /// - `Ok(slice)` containing the requested bytes
     /// - [`Error::InsufficientData`] if not enough bytes are available
     /// ```
-    fn peek_exact(&self, size: usize) -> Result<&[u8]> {
-        let data: &[u8] = self.data.as_ref();
+    fn peek_exact(&self, size: usize) -> Result<&'a [u8]> {
         self.check_bounds(size)?;
-        let result: &[u8] = &data[self.pos..self.pos + size];
+        let result: &[u8] = &self.data[self.pos..self.pos + size];
         Ok(result)
     }
 
@@ -800,10 +797,9 @@ impl<T: AsRef<[u8]>> ByteReader<T> {
     /// - `Ok(slice)` containing the requested bytes
     /// - [`Error::InsufficientData`] if not enough bytes are available
     /// ```
-    fn read_exact(&mut self, size: usize) -> Result<&[u8]> {
-        let data: &[u8] = self.data.as_ref();
+    fn read_exact(&mut self, size: usize) -> Result<&'a [u8]> {
         self.check_bounds(size)?;
-        let result: &[u8] = &data[self.pos..self.pos + size];
+        let result: &[u8] = &self.data[self.pos..self.pos + size];
         self.pos += size;
         Ok(result)
     }
@@ -827,12 +823,12 @@ impl<T: AsRef<[u8]>> ByteReader<T> {
     /// ```rust
     /// use bytecraft::reader::ByteReader;
     ///
-    /// let reader = ByteReader::new([0x01, 0x02, 0x03, 0x04]);
+    /// let reader = ByteReader::new(&[0x01, 0x02, 0x03, 0x04]);
     /// let value: u16 = reader.peek().unwrap(); // Peek without consuming
     /// assert_eq!(reader.position(), 0); // Position unchanged
     /// assert_eq!(value, 0x0201);
     /// ```
-    pub fn peek<P: Peekable>(&self) -> Result<P> {
+    pub fn peek<P: Peekable<'a>>(&self) -> Result<P> {
         P::peek(PeekStream { reader: self })
     }
 
@@ -856,14 +852,14 @@ impl<T: AsRef<[u8]>> ByteReader<T> {
     /// ```rust
     /// use bytecraft::reader::ByteReader;
     ///
-    /// let mut reader = ByteReader::new([0x01, 0x02, 0x03, 0x04]);
+    /// let mut reader = ByteReader::new(&[0x01, 0x02, 0x03, 0x04]);
     /// assert_eq!(reader.position(), 0);
     ///
     /// let value: u32 = reader.read().unwrap(); // Read and consume
     /// assert_eq!(reader.position(), 4); // Position advanced
     /// assert_eq!(value, 0x04030201);
     /// ```
-    pub fn read<R: Readable>(&mut self) -> Result<R> {
+    pub fn read<R: Readable<'a>>(&mut self) -> Result<R> {
         R::read(ReadStream { reader: self })
     }
 
@@ -886,12 +882,12 @@ impl<T: AsRef<[u8]>> ByteReader<T> {
     /// ```rust
     /// use bytecraft::reader::ByteReader;
     ///
-    /// let mut reader = ByteReader::new([1, 2, 3, 4, 5]);
+    /// let mut reader = ByteReader::new(&[1, 2, 3, 4, 5]);
     /// let bytes = reader.read_bytes(3).unwrap();
     /// assert_eq!(bytes, &[1, 2, 3]);
     /// assert_eq!(reader.position(), 3);
     /// ```
-    pub fn read_bytes(&mut self, size: usize) -> Result<&[u8]> {
+    pub fn read_bytes(&mut self, size: usize) -> Result<&'a [u8]> {
         self.read_exact(size)
     }
 
@@ -915,7 +911,7 @@ impl<T: AsRef<[u8]>> ByteReader<T> {
     /// ```rust
     /// use bytecraft::reader::ByteReader;
     ///
-    /// let mut reader = ByteReader::new([1, 2, 3, 4, 5]);
+    /// let mut reader = ByteReader::new(&[1, 2, 3, 4, 5]);
     /// let bytes = reader.read_vec(3).unwrap();
     /// assert_eq!(bytes, vec![1, 2, 3]);
     /// assert_eq!(reader.position(), 3);
@@ -1008,18 +1004,21 @@ impl<T: AsRef<[u8]>> ByteReader<T> {
 ///
 /// struct MyType(u16);
 ///
-/// impl Peekable for MyType {
-///     fn peek<T: AsRef<[u8]>>(stream: PeekStream<T>) -> Result<Self> {
+/// impl<'a> Peekable<'a> for MyType {
+///     fn peek<'r>(stream: PeekStream<'a, 'r>) -> Result<Self> {
 ///         let value: u16 = stream.peek()?; // Peek without consuming
 ///         Ok(MyType(value))
 ///     }
 /// }
 /// ```
-pub struct PeekStream<'a, T: AsRef<[u8]>> {
-    reader: &'a ByteReader<T>,
+pub struct PeekStream<'a, 'r>
+where
+    'a: 'r,
+{
+    reader: &'r ByteReader<'a>,
 }
 
-impl<'a, T: AsRef<[u8]>> PeekStream<'a, T> {
+impl<'a, 'r> PeekStream<'a, 'r> {
     /// Returns the current endianness setting of the underlying reader.
     ///
     /// # Returns
@@ -1084,7 +1083,7 @@ impl<'a, T: AsRef<[u8]>> PeekStream<'a, T> {
     ///
     /// - `Ok(value)` of type `P`
     /// - An error if the value cannot be peeked
-    pub fn peek<P: Peekable>(&self) -> Result<P> {
+    pub fn peek<P: Peekable<'a>>(&self) -> Result<P> {
         self.reader.peek::<P>()
     }
 }
@@ -1113,8 +1112,8 @@ impl<'a, T: AsRef<[u8]>> PeekStream<'a, T> {
 ///     count: u16,
 /// }
 ///
-/// impl Readable for MyStruct {
-///     fn read<T: AsRef<[u8]>>(mut stream: ReadStream<T>) -> Result<Self> {
+/// impl<'a> Readable<'a> for MyStruct {
+///     fn read<'r>(mut stream: ReadStream<'a, 'r>) -> Result<Self> {
 ///         Ok(MyStruct {
 ///             id: stream.read()?,      // Read and consume u32
 ///             count: stream.read()?,   // Read and consume u16
@@ -1122,11 +1121,14 @@ impl<'a, T: AsRef<[u8]>> PeekStream<'a, T> {
 ///     }
 /// }
 /// ```
-pub struct ReadStream<'a, T: AsRef<[u8]>> {
-    reader: &'a mut ByteReader<T>,
+pub struct ReadStream<'a, 'r>
+where
+    'a: 'r,
+{
+    reader: &'r mut ByteReader<'a>,
 }
 
-impl<'a, T: AsRef<[u8]>> ReadStream<'a, T> {
+impl<'a, 'r> ReadStream<'a, 'r> {
     /// Returns the current endianness setting of the underlying reader.
     ///
     /// # Returns
@@ -1209,7 +1211,10 @@ impl<'a, T: AsRef<[u8]>> ReadStream<'a, T> {
     ///
     /// - `Ok(slice)` containing the requested bytes
     /// - [`Error::InsufficientData`] if not enough bytes are available
-    pub fn read_exact(&mut self, size: usize) -> Result<&[u8]> {
+    pub fn read_exact(&mut self, size: usize) -> Result<&'a [u8]>
+    where
+        'a: 'r,
+    {
         self.reader.read_exact(size)
     }
 
@@ -1225,7 +1230,7 @@ impl<'a, T: AsRef<[u8]>> ReadStream<'a, T> {
     ///
     /// - `Ok(value)` of type `P`
     /// - An error if the value cannot be peeked
-    pub fn peek<P: Peekable>(&self) -> Result<P> {
+    pub fn peek<P: Peekable<'a>>(&self) -> Result<P> {
         self.reader.peek::<P>()
     }
 
@@ -1241,7 +1246,7 @@ impl<'a, T: AsRef<[u8]>> ReadStream<'a, T> {
     ///
     /// - `Ok(value)` of type `R`
     /// - An error if the value cannot be read
-    pub fn read<R: Readable>(&mut self) -> Result<R> {
+    pub fn read<R: Readable<'a>>(&mut self) -> Result<R> {
         self.reader.read::<R>()
     }
 
@@ -1262,35 +1267,29 @@ impl<'a, T: AsRef<[u8]>> ReadStream<'a, T> {
     }
 }
 
-impl<T: AsRef<[u8]> + Clone> Clone for ByteReader<T> {
+impl Clone for ByteReader<'_> {
     fn clone(&self) -> Self {
         Self {
-            data: self.data.clone(),
+            data: self.data,
             pos: self.pos,
             endian: self.endian,
         }
     }
 }
 
-impl<T: AsRef<[u8]>> PartialEq for ByteReader<T> {
+impl PartialEq for ByteReader<'_> {
     fn eq(&self, other: &Self) -> bool {
-        self.data.as_ref().eq(other.data.as_ref())
+        self.data.as_ref().as_ref().eq(other.data.as_ref().as_ref())
     }
 }
 
-impl<'a, T: AsRef<[u8]>> From<T> for ByteReader<T> {
-    fn from(value: T) -> Self {
-        Self::new(value)
-    }
-}
-
-impl<T: AsRef<[u8]>> Read for ByteReader<T> {
+impl Read for ByteReader<'_> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         if self.rest_len() == 0 {
             return Ok(0);
         }
 
-        let data: &[u8] = self.data.as_ref();
+        let data: &[u8] = self.data.as_ref().as_ref();
         let to_read: usize = std::cmp::min(self.rest_len(), buf.len());
         buf[..to_read].copy_from_slice(&data[self.pos..self.pos + to_read]);
         self.pos += to_read;

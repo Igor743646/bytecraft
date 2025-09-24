@@ -13,7 +13,7 @@ fn test_vec_simple_types() -> Result<()> {
     let mut writer: ByteWriter<_> = ByteWriter::new(&mut buffer[..]);
     writer.write(&original_vec)?;
 
-    let mut reader: ByteReader<_> = ByteReader::new(&buffer[..]);
+    let mut reader: ByteReader = ByteReader::new(&buffer);
     let read_vec: Vec<u32> = reader.read()?;
 
     assert_eq!(original_vec, read_vec);
@@ -28,8 +28,8 @@ fn test_vec_complex_types() -> Result<()> {
         y: f32,
     }
 
-    impl Readable for Point {
-        fn read<T: AsRef<[u8]>>(mut s: ReadStream<T>) -> Result<Self> {
+    impl<'a> Readable<'a> for Point {
+        fn read<'r>(mut s: ReadStream<'a, 'r>) -> Result<Self> {
             Ok(Point {
                 x: s.read()?,
                 y: s.read()?,
@@ -58,7 +58,7 @@ fn test_vec_complex_types() -> Result<()> {
     let mut writer: ByteWriter<_> = ByteWriter::new(&mut buffer[..]);
     writer.write(&original_vec)?;
 
-    let mut reader: ByteReader<_> = ByteReader::new(&buffer[..]);
+    let mut reader: ByteReader = ByteReader::new(&buffer);
     let read_vec: Vec<Point> = reader.read()?;
 
     assert_eq!(original_vec, read_vec);
@@ -73,7 +73,7 @@ fn test_string_roundtrip() -> Result<()> {
     let mut writer: ByteWriter<_> = ByteWriter::new(&mut buffer[..]);
     writer.write(&original_string)?;
 
-    let mut reader: ByteReader<_> = ByteReader::new(&buffer[..]);
+    let mut reader: ByteReader = ByteReader::new(&buffer);
     let read_string: String = reader.read()?;
 
     assert_eq!(original_string, read_string);
@@ -88,7 +88,7 @@ fn test_string_empty() -> Result<()> {
     let mut writer: ByteWriter<_> = ByteWriter::new(&mut buffer[..]);
     writer.write(&original_string)?;
 
-    let mut reader: ByteReader<_> = ByteReader::new(&buffer[..]);
+    let mut reader: ByteReader = ByteReader::new(&buffer);
     let read_string: String = reader.read()?;
 
     assert_eq!(original_string, read_string);
@@ -104,7 +104,7 @@ fn test_cstring_roundtrip() -> Result<()> {
     writer.write(&original_cstring)?;
     writer.write(&original_cstring)?;
 
-    let mut reader: ByteReader<_> = ByteReader::new(&buffer[..]);
+    let mut reader: ByteReader = ByteReader::new(&buffer);
     let read_cstring1: CString = reader.read()?;
     let read_cstring2: CString = reader.read()?;
 
@@ -126,7 +126,7 @@ fn test_mixed_collections() -> Result<()> {
     writer.write(&original_vec)?;
     writer.write(&original_cstring)?;
 
-    let mut reader: ByteReader<_> = ByteReader::new(&buffer[..]);
+    let mut reader: ByteReader = ByteReader::new(&buffer);
     let read_string: String = reader.read()?;
     let read_vec: Vec<i32> = reader.read()?;
     let read_cstring: CString = reader.read()?;
@@ -145,7 +145,7 @@ fn test_vec_size_limit() -> Result<()> {
     let mut writer: ByteWriter<_> = ByteWriter::new(&mut buffer[..]);
     writer.write(&original_vec)?;
 
-    let mut reader: ByteReader<_> = ByteReader::new(&buffer[..]);
+    let mut reader: ByteReader = ByteReader::new(&buffer);
     let read_vec: Vec<u8> = reader.read()?;
 
     assert_eq!(original_vec, read_vec);
@@ -160,7 +160,7 @@ fn test_string_unicode() -> Result<()> {
     let mut writer: ByteWriter<_> = ByteWriter::new(&mut buffer[..]);
     writer.write(&original_string)?;
 
-    let mut reader: ByteReader<_> = ByteReader::new(&buffer[..]);
+    let mut reader: ByteReader = ByteReader::new(&buffer);
     let read_string: String = reader.read()?;
 
     assert_eq!(original_string, read_string);
@@ -175,7 +175,7 @@ fn test_empty_vec() -> Result<()> {
     let mut writer: ByteWriter<_> = ByteWriter::new(&mut buffer[..]);
     writer.write(&original_vec)?;
 
-    let mut reader: ByteReader<_> = ByteReader::new(&buffer[..]);
+    let mut reader: ByteReader = ByteReader::new(&buffer);
     let read_vec: Vec<u32> = reader.read()?;
 
     assert_eq!(original_vec, read_vec);
@@ -203,7 +203,7 @@ fn test_collection_position_tracking() -> Result<()> {
     assert!(vec_end > string1_end);
     assert!(final_pos > vec_end);
 
-    let mut reader: ByteReader<_> = ByteReader::new(&buffer[..final_pos]);
+    let mut reader: ByteReader = ByteReader::new(&buffer[..final_pos]);
     let read_string1: String = reader.read()?;
     let read_vec: Vec<u16> = reader.read()?;
     let read_string2: String = reader.read()?;

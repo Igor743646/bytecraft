@@ -34,7 +34,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-bytecraft = "0.1"
+bytecraft = "0.2"
 ```
 
 ## Change Log
@@ -73,8 +73,8 @@ struct Point {
     y: f32,
 }
 
-impl Readable for Point {
-    fn read<T: AsRef<[u8]>>(mut stream: ReadStream<T>) -> Result<Self> {
+impl<'a> Readable<'a> for Point {
+    fn read<'r>(mut stream: ReadStream<'a, 'r>) -> Result<Self> {
         Ok(Point {
             x: stream.read()?,
             y: stream.read()?,

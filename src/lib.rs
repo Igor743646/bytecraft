@@ -64,15 +64,15 @@
 //!     f2: i32,
 //! }
 //!
-//! impl Readable for MyStruct {
-//!     fn read<S: AsRef<[u8]>>(mut s: ReadStream<S>) -> Result<Self> {
+//! impl<'a> Readable<'a> for MyStruct {
+//!     fn read<'r>(mut s: ReadStream<'a, 'r>) -> Result<Self> {
 //!         let (f1, f2) = s.read::<(u8, i32)>()?;
 //!
 //!         Ok(MyStruct {f1, f2})
 //!     }
 //! }
 //!
-//! let mut reader = ByteReader::new([0x01, 0xFF, 0x00, 0x00, 0x00]);
+//! let mut reader = ByteReader::new(&[0x01, 0xFF, 0x00, 0x00, 0x00]);
 //! let value: u32 = reader.read().unwrap(); // Direct reading
 //! reader.reset();
 //! let complex: MyStruct = reader.read().unwrap(); // Composite types
@@ -111,8 +111,8 @@
 //!     y: f32,
 //! }
 //!
-//! impl Readable for Point {
-//!     fn read<T: AsRef<[u8]>>(mut s: ReadStream<T>) -> Result<Self> {
+//! impl<'a> Readable<'a> for Point {
+//!     fn read<'r>(mut s: ReadStream<'a, 'r>) -> Result<Self> {
 //!         Ok(Point {
 //!             x: s.read()?,
 //!             y: s.read()?,
@@ -142,7 +142,7 @@
 //!     let mut writer: ByteWriter<_> = ByteWriter::new(&mut buffer[..]);
 //!     writer.write(&original_vec)?;
 //!    
-//!     let mut reader: ByteReader<_> = ByteReader::new(&buffer[..]);
+//!     let mut reader: ByteReader = ByteReader::new(&buffer[..]);
 //!     let read_vec: Vec<Point> = reader.read()?;
 //!    
 //!     assert_eq!(original_vec, read_vec);

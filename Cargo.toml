@@ -1,6 +1,6 @@
 [package]
 name = "bytecraft"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Igor Glushatov <igor.743646@gmail.com>"]
 edition = "2021"
 rust-version = "1.89.0"
@@ -11,9 +11,7 @@ keywords = ["bytecraft", "byte", "reader", "writer", "serialization"]
 categories = ["encoding"]
 readme = "README.md"
 license = "MIT OR Apache-2.0"
-exclude = [
-    "tests/*",
-]
+exclude = ["tests/*"]
 
 [lib]
 name = "bytecraft"

@@ -31,8 +31,8 @@
 //!     version: u16,
 //! };
 //!
-//! impl Readable for Header {
-//!     fn read<T: AsRef<[u8]>>(mut stream: ReadStream<T>) -> Result<Self> {
+//! impl<'a> Readable<'a> for Header {
+//!     fn read<'r>(mut stream: ReadStream<'a, 'r>) -> Result<Self> {
 //!         Ok(Header {
 //!             magic: stream.read()?,    // Reads u32
 //!             version: stream.read()?,  // Reads u16
@@ -46,8 +46,8 @@
 //!     data: Vec<u8>,       // Another Readable type
 //! };
 //!
-//! impl Readable for File {
-//!     fn read<T: AsRef<[u8]>>(mut stream: ReadStream<T>) -> Result<Self> {
+//! impl<'a> Readable<'a> for File {
+//!     fn read<'r>(mut stream: ReadStream<'a, 'r>) -> Result<Self> {
 //!         let header: Header = stream.read()?;  // Composes Header
 //!         let data_len: u32 = stream.read()?;   // Reads length
 //!         let data = stream.read_vec(data_len as usize)?; // Reads data
@@ -122,8 +122,8 @@
 //!     y: f32,
 //! }
 //!
-//! impl Readable for Point {
-//!     fn read<T: AsRef<[u8]>>(mut stream: ReadStream<T>) -> bytecraft::error::Result<Self> {
+//! impl<'a> Readable<'a> for Point {
+//!     fn read<'r>(mut stream: ReadStream<'a, 'r>) -> bytecraft::error::Result<Self> {
 //!         Ok(Point {
 //!             x: stream.read()?,
 //!             y: stream.read()?,
@@ -155,8 +155,8 @@
 //!     value: u32,
 //! }
 //!
-//! impl Readable for ValidatedData {
-//!     fn read<T: AsRef<[u8]>>(mut stream: ReadStream<T>) -> Result<Self> {
+//! impl<'a> Readable<'a> for ValidatedData {
+//!     fn read<'r>(mut stream: ReadStream<'a, 'r>) -> Result<Self> {
 //!         let value: u32 = stream.read()?;
 //!         
 //!         // Custom validation
@@ -211,8 +211,8 @@ use crate::reader::ReadStream;
 ///     flag: bool,
 /// }
 ///
-/// impl Readable for SimpleStruct {
-///     fn read<T: AsRef<[u8]>>(mut stream: ReadStream<T>) -> Result<Self> {
+/// impl<'a> Readable<'a> for SimpleStruct {
+///     fn read<'r>(mut stream: ReadStream<'a, 'r>) -> Result<Self> {
 ///         Ok(SimpleStruct {
 ///             id: stream.read()?,
 ///             flag: stream.read()?,
@@ -232,8 +232,8 @@ use crate::reader::ReadStream;
 ///
 /// struct LengthPrefixedString(String);
 ///
-/// impl Readable for LengthPrefixedString {
-///     fn read<T: AsRef<[u8]>>(mut stream: ReadStream<T>) -> Result<Self> {
+/// impl<'a> Readable<'a> for LengthPrefixedString {
+///     fn read<'r>(mut stream: ReadStream<'a, 'r>) -> Result<Self> {
 ///         let len: u32 = stream.read()?;
 ///         let bytes: &[u8] = stream.read_exact(len as usize)?;
 ///         let data = str::from_utf8(bytes)
@@ -247,7 +247,7 @@ use crate::reader::ReadStream;
 ///
 /// - [`crate::reader::ByteReader::read()`] - The primary method for reading `Readable` types
 /// - [`crate::reader::ReadStream`] - The stream type provided to implementations
-pub trait Readable: Sized {
+pub trait Readable<'a>: Sized {
     /// Reads a value of this type from the provided stream.
     ///
     /// This method is called by [ByteReader::read()](super::ByteReader::read) to deserialize values.
@@ -269,12 +269,12 @@ pub trait Readable: Sized {
     /// - Use `stream.read_exact(size)?` for raw byte access
     /// - Consider endianness when reading multi-byte values
     /// - Handle errors appropriately with meaningful error types
-    fn read<T: AsRef<[u8]>>(stream: ReadStream<T>) -> Result<Self>;
+    fn read<'r>(s: ReadStream<'a, 'r>) -> Result<Self>;
 }
 
 macro_rules! impl_number {
     ($Type:ty) => {
-        impl Readable for $Type {
+        impl<'a> Readable<'a> for $Type {
             /// Reads a numeric value with proper endianness handling.
             ///
             /// # Process
@@ -288,7 +288,7 @@ macro_rules! impl_number {
             /// - [`Endian::Little`]: Uses `from_le_bytes()`
             /// - [`Endian::Big`]: Uses `from_be_bytes()`
             /// - [`Endian::Native`]: Uses `from_ne_bytes()`
-            fn read<T: AsRef<[u8]>>(mut s: ReadStream<T>) -> Result<Self> {
+            fn read(mut s: ReadStream) -> Result<Self> {
                 let data: &[u8] = s.read_exact(size_of::<$Type>())?;
                 let data: [u8; size_of::<$Type>()] = data.try_into().unwrap();
 
@@ -317,13 +317,13 @@ impl_number!(isize);
 impl_number!(f32);
 impl_number!(f64);
 
-impl Readable for bool {
+impl<'a> Readable<'a> for bool {
     /// Reads a byte ([u8]) and converts it to bool.
     /// - 0 - false
     /// - 1 - true
     ///
     /// Returns error [Error::NotValid] if value is not 0 or 1.
-    fn read<T: AsRef<[u8]>>(mut s: ReadStream<T>) -> Result<Self> {
+    fn read(mut s: ReadStream) -> Result<Self> {
         match s.read::<u8>() {
             Ok(0) => Ok(false),
             Ok(1) => Ok(true),
@@ -365,7 +365,7 @@ impl Readable for bool {
 /// // Reading array of complex types (if they implement Readable)
 /// // let points: [Point; 2] = reader.read().unwrap();
 /// ```
-impl<T: Readable, const N: usize> Readable for [T; N] {
+impl<'a, T: Readable<'a>, const N: usize> Readable<'a> for [T; N] {
     /// Reads a fixed-size array by reading each element sequentially.
     ///
     /// # Error Handling
@@ -378,7 +378,7 @@ impl<T: Readable, const N: usize> Readable for [T; N] {
     /// - Time complexity: O(N) where N is array length
     /// - Space complexity: O(N) for the result array
     /// - No additional allocations beyond what elements require
-    fn read<S: AsRef<[u8]>>(mut s: ReadStream<S>) -> Result<Self> {
+    fn read<'r>(mut s: ReadStream<'a, 'r>) -> Result<Self> {
         let mut data: MaybeUninit<[T; N]> = MaybeUninit::uninit();
 
         let mut initialized_count: usize = 0;
@@ -446,8 +446,8 @@ macro_rules! impl_tupple {
         ///
         /// If any element fails to read, the error is immediately
         /// propagated and subsequent elements are not read.
-        impl<$($Types : Readable),+> Readable for ($($Types ,)+) {
-            fn read<S: AsRef<[u8]>>(mut s: ReadStream<S>) -> Result<Self> {
+        impl<'a, $($Types : Readable<'a>),+> Readable<'a> for ($($Types ,)+) {
+            fn read<'r>(mut s: ReadStream<'a, 'r>) -> Result<Self> {
                 Ok(($(s.read::<$Types>()?,)+))
             }
         }
@@ -469,7 +469,7 @@ impl_tupple!(T0 T1 T2 T3 T4 T5 T6 T7 T8 T9 T10);
 impl_tupple!(T0 T1 T2 T3 T4 T5 T6 T7 T8 T9 T10 T11);
 impl_tupple!(T0 T1 T2 T3 T4 T5 T6 T7 T8 T9 T10 T11 T12);
 
-impl<T: Readable> Readable for Vec<T> {
+impl<'a, T: Readable<'a>> Readable<'a> for Vec<T> {
     /// Reads a vector from a length-prefixed binary format.
     ///
     /// # Process
@@ -509,7 +509,7 @@ impl<T: Readable> Readable for Vec<T> {
     ///
     /// If any element fails to read, the error is immediately propagated
     /// and the partially constructed vector is dropped.
-    fn read<U: AsRef<[u8]>>(mut s: ReadStream<U>) -> Result<Self> {
+    fn read<'r>(mut s: ReadStream<'a, 'r>) -> Result<Self> {
         let size: u32 = s.read()?;
 
         let mut result: Vec<T> = Vec::with_capacity(size as usize);
@@ -523,7 +523,7 @@ impl<T: Readable> Readable for Vec<T> {
     }
 }
 
-impl Readable for String {
+impl<'a> Readable<'a> for String {
     /// Reads a string from a length-prefixed UTF-8 binary format.
     ///
     /// # Process
@@ -564,13 +564,13 @@ impl Readable for String {
     ///
     /// UTF-8 validation errors are wrapped in [`Error::NotValidUTF8`] and
     /// propagated to the caller.
-    fn read<U: AsRef<[u8]>>(mut s: ReadStream<U>) -> Result<Self> {
+    fn read(mut s: ReadStream) -> Result<Self> {
         let vec: Vec<u8> = s.read()?;
         String::from_utf8(vec).map_err(|err| Error::NotValidUTF8(err.utf8_error()))
     }
 }
 
-impl Readable for CString {
+impl<'a> Readable<'a> for CString {
     /// Reads a C string from a null-terminated binary format.
     ///
     /// # Process
@@ -615,7 +615,7 @@ impl Readable for CString {
     /// C string validation errors are wrapped in [`Error::Custom`] and
     /// propagated to the caller. This includes cases like:
     /// - Missing null terminator (stream ends prematurely)
-    fn read<U: AsRef<[u8]>>(mut s: ReadStream<U>) -> Result<Self> {
+    fn read(mut s: ReadStream) -> Result<Self> {
         let mut result: Vec<u8> = Vec::new();
 
         loop {

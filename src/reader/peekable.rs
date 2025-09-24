@@ -78,7 +78,7 @@
 //! }
 //!
 //! impl FileFormat {
-//!     fn detect(reader: &ByteReader<impl AsRef<[u8]>>) -> Result<Self> {
+//!     fn detect(reader: &mut ByteReader) -> Result<Self> {
 //!         let magic: u32 = reader.peek()?;
 //!         match magic {
 //!             0x89504E47 => Ok(FileFormat::Png),  // PNG magic
@@ -107,8 +107,8 @@
 //!     Binary(Vec<u8>),
 //! }
 //!
-//! impl Readable for Message {
-//!     fn read<T: AsRef<[u8]>>(mut stream: ReadStream<T>) -> Result<Self> {
+//! impl<'a> Readable<'a> for Message {
+//!     fn read<'r>(mut stream: ReadStream<'a, 'r>) -> Result<Self> {
 //!         let is_text: u8 = stream.peek()?; // Peek at type flag
 //!         
 //!         if is_text == 1 {
@@ -145,8 +145,8 @@
 //!     version: u16,
 //! }
 //!
-//! impl Peekable for HeaderPreview {
-//!     fn peek<T: AsRef<[u8]>>(s: PeekStream<T>) -> Result<Self> {
+//! impl<'a> Peekable<'a> for HeaderPreview {
+//!     fn peek<'r>(s: PeekStream<'a, 'r>) -> Result<Self> {
 //!         let mut subreader = ByteReader::with_endian(s.peek_exact(6)?, s.get_endian());
 //!         let magic: u32 = subreader.read()?;
 //!         let version: u16 = subreader.read()?;  
@@ -234,8 +234,8 @@ use crate::reader::PeekStream;
 ///     flag: bool,
 /// }
 ///
-/// impl Peekable for PreviewStruct {
-///     fn peek<T: AsRef<[u8]>>(s: PeekStream<T>) -> Result<Self> {
+/// impl<'a> Peekable<'a> for PreviewStruct {
+///     fn peek<'r>(s: PeekStream<'a, 'r>) -> Result<Self> {
 ///         let mut subreader = ByteReader::with_endian(s.peek_exact(5)?, s.get_endian());
 ///         let (id, flag) = subreader.read::<(u32, bool)>()?;
 ///
@@ -261,8 +261,8 @@ use crate::reader::PeekStream;
 ///     value: u32,
 /// }
 ///
-/// impl Peekable for ValidatedPreview {
-///     fn peek<T: AsRef<[u8]>>(stream: PeekStream<T>) -> Result<Self> {
+/// impl<'a> Peekable<'a> for ValidatedPreview {
+///     fn peek<'r>(stream: PeekStream<'a, 'r>) -> Result<Self> {
 ///         let value: u32 = stream.peek()?;
 ///         
 ///         // Custom validation without consuming data
@@ -280,7 +280,7 @@ use crate::reader::PeekStream;
 /// - [`crate::reader::ByteReader::peek()`] - The primary method for peeking at `Peekable` types
 /// - [`crate::reader::PeekStream`] - The stream type provided to implementations
 /// - [`Readable`][super::Readable] - The consuming counterpart to this trait
-pub trait Peekable: Sized {
+pub trait Peekable<'a>: Sized {
     /// Peeks at a value of this type from the provided stream.
     ///
     /// This method is called by [ByteReader::peek()][super::ByteReader::peek] to inspect values without
@@ -303,12 +303,12 @@ pub trait Peekable: Sized {
     /// - Consider endianness when peeking at multi-byte values
     /// - Handle errors appropriately with meaningful error types
     /// - **Never** advance the stream position
-    fn peek<T: AsRef<[u8]>>(stream: PeekStream<T>) -> Result<Self>;
+    fn peek<'r>(s: PeekStream<'a, 'r>) -> Result<Self>;
 }
 
 macro_rules! impl_number {
     ($Type:ty) => {
-        impl Peekable for $Type {
+        impl<'a> Peekable<'a> for $Type {
             /// Peeks a numeric value with proper endianness handling.
             ///
             /// # Process
@@ -321,7 +321,7 @@ macro_rules! impl_number {
             /// - [`Endian::Little`]: Uses `from_le_bytes()`
             /// - [`Endian::Big`]: Uses `from_be_bytes()`
             /// - [`Endian::Native`]: Uses `from_ne_bytes()`
-            fn peek<T: AsRef<[u8]>>(s: PeekStream<T>) -> Result<Self> {
+            fn peek<'r>(s: PeekStream<'a, 'r>) -> Result<Self> {
                 let data: &[u8] = s.peek_exact(size_of::<$Type>())?;
                 let data: [u8; size_of::<$Type>()] = data.try_into().unwrap();
 
@@ -350,13 +350,13 @@ impl_number!(isize);
 impl_number!(f32);
 impl_number!(f64);
 
-impl Peekable for bool {
+impl<'a> Peekable<'a> for bool {
     /// Peeks a byte ([u8]) and converts it to bool.
     /// - 0 - false
     /// - 1 - true
     ///
     /// Returns error [Error::NotValid] if value is not 0 or 1.
-    fn peek<T: AsRef<[u8]>>(s: PeekStream<T>) -> Result<Self> {
+    fn peek<'r>(s: PeekStream<'a, 'r>) -> Result<Self> {
         match s.peek::<u8>() {
             Ok(0) => Ok(false),
             Ok(1) => Ok(true),

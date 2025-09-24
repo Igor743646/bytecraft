@@ -173,7 +173,7 @@ pub enum Error {
     ///
     /// // Data containing non-ASCII bytes
     /// let data: &[u8] = "📚".as_bytes(); // Valid UTF-8 but non-ASCII // "\xF0\x9F\x93\x9A"
-    /// let mut reader: ByteReader<_> = ByteReader::new(data);
+    /// let mut reader: ByteReader = ByteReader::new(data);
     ///
     /// match reader.read_ascii(4) {
     ///     Err(Error::NotValidAscii) => {
@@ -233,6 +233,7 @@ pub enum Error {
     /// ```
     /// use bytecraft::error::Error;
     /// use bytecraft::error::Result;
+    /// use bytecraft::readable::Readable;
     /// use bytecraft::reader::ReadStream;
     /// use bytecraft::common::SeekFrom;
     /// use core::error::Error as StdError;
@@ -250,8 +251,8 @@ pub enum Error {
     ///
     /// struct MyCustomType;
     ///
-    /// impl MyCustomType {
-    ///     fn read<T: AsRef<[u8]>>(_stream: ReadStream<T>) -> Result<Self> {
+    /// impl<'a> Readable<'a> for MyCustomType {
+    ///     fn read<'r>(mut s: ReadStream<'a, 'r>) -> Result<Self> {
     ///         // Some custom validation that fails
     ///         Err(Error::Custom(Box::new(CustomParseError("Invalid format".to_string()))))
     ///     }

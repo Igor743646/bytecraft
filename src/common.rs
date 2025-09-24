@@ -9,7 +9,7 @@
 //! use bytecraft::reader::ByteReader;
 //!
 //! let data = [0x01, 0x02];
-//! let mut reader = ByteReader::new(data);
+//! let mut reader = ByteReader::new(&data);
 //!
 //! // set endianness
 //! reader.set_endian(Endian::Little);

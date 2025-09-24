@@ -262,8 +262,8 @@ fn write_custom() -> Result<()> {
     #[derive(Debug, PartialEq, Eq)]
     pub struct LableValue(u32, i8, [u16; 12]);
 
-    impl Readable for LableValue {
-        fn read<T: AsRef<[u8]>>(mut s: bytecraft::reader::ReadStream<T>) -> Result<Self> {
+    impl<'a> Readable<'a> for LableValue {
+        fn read<'r>(mut s: bytecraft::reader::ReadStream<'a, 'r>) -> Result<Self> {
             let (f1, f2, f3) = s.read::<(u32, i8, [u16; 12])>()?;
             Ok(Self(f1, f2, f3))
         }
@@ -292,8 +292,8 @@ fn write_custom() -> Result<()> {
         value: LableValue,
     }
 
-    impl Readable for Label {
-        fn read<T: AsRef<[u8]>>(mut s: bytecraft::reader::ReadStream<T>) -> Result<Self> {
+    impl<'a> Readable<'a> for Label {
+        fn read<'r>(mut s: bytecraft::reader::ReadStream<'a, 'r>) -> Result<Self> {
             let name_size: u32 = s.read()?;
             let name: &[u8] = s.read_exact(name_size as usize)?;
             let name: String = str::from_utf8(name).map_err(|_| Error::NotValid)?.into();
@@ -348,7 +348,7 @@ fn write_custom() -> Result<()> {
         ]
     );
 
-    let mut lreader: ByteReader<_> = ByteReader::with_endian(&data, Endian::Big);
+    let mut lreader: ByteReader = ByteReader::with_endian(&data, Endian::Big);
 
     let rlabel: Label = lreader.read()?;
 

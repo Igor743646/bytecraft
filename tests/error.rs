@@ -69,7 +69,7 @@ fn test_not_valid_ascii_error() -> Result<()> {
 #[test]
 fn test_not_valid_ascii_error_doc() -> Result<()> {
     let data: &[u8] = "📚".as_bytes(); // Invalid UTF-8 and non-ASCII // "\xF0\x9F\x93\x9A"
-    let mut reader: ByteReader<_> = ByteReader::new(data);
+    let mut reader: ByteReader = ByteReader::new(data);
 
     match reader.read_ascii(4) {
         Err(Error::NotValidAscii) => {
@@ -115,7 +115,7 @@ fn test_custom_error() -> Result<()> {
 #[test]
 fn test_insufficient_data_example() -> Result<()> {
     let data: [u8; 2] = [0x01, 0x02]; // Only 2 bytes
-    let mut reader: ByteReader<_> = ByteReader::new(&data[..]);
+    let mut reader: ByteReader = ByteReader::new(&data);
 
     // Trying to read u32 (4 bytes) from 2 bytes of data
     match reader.read::<u32>() {
@@ -134,7 +134,7 @@ fn test_insufficient_data_example() -> Result<()> {
 #[test]
 fn test_out_of_bounds_example() -> Result<()> {
     let data: [u8; 4] = [0x01, 0x02, 0x03, 0x04];
-    let mut reader: ByteReader<_> = ByteReader::new(&data[..]);
+    let mut reader: ByteReader = ByteReader::new(&data);
 
     // Trying to seek beyond the end of data
     match reader.seek(SeekFrom::Start(100)) {
@@ -155,7 +155,7 @@ fn test_out_of_bounds_example() -> Result<()> {
 #[test]
 fn test_result_type_usage() -> Result<()> {
     fn read_header(data: &[u8]) -> Result<u32> {
-        let mut reader: ByteReader<_> = ByteReader::new(data);
+        let mut reader: ByteReader = ByteReader::new(data);
         reader.read::<u32>()
     }
 

@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::borrow::Cow;
 
 use bytecraft::common::Endian;
@@ -10,30 +11,24 @@ use bytecraft::reader::ByteReader;
 #[test]
 fn constructor() {
     let slice: [u8; 10] = [0u8; 10];
-    let reader: ByteReader<_> = ByteReader::new(&slice);
-    assert_eq!(reader.endian(), Endian::Native);
-    let reader: ByteReader<_> = ByteReader::new(slice);
+    let reader: ByteReader = ByteReader::new(&slice);
     assert_eq!(reader.endian(), Endian::Native);
 
     let vec: Vec<u8> = Vec::new();
-    let reader: ByteReader<_> = ByteReader::new(&vec);
-    assert_eq!(reader.endian(), Endian::Native);
-    let reader: ByteReader<_> = ByteReader::new(vec);
+    let reader: ByteReader = ByteReader::new(&vec);
     assert_eq!(reader.endian(), Endian::Native);
 
     let string: String = String::new();
-    let reader: ByteReader<_> = ByteReader::new(&string);
-    assert_eq!(reader.endian(), Endian::Native);
-    let reader: ByteReader<_> = ByteReader::new(string);
+    let reader: ByteReader = ByteReader::new(string.as_bytes());
     assert_eq!(reader.endian(), Endian::Native);
 
     let vec: Vec<u8> = Vec::new();
     let cow: Cow<'_, [u8]> = Cow::Borrowed(&vec);
-    let reader: ByteReader<_> = ByteReader::new(cow);
+    let reader: ByteReader = ByteReader::new(cow.borrow());
     assert_eq!(reader.endian(), Endian::Native);
 
     let cow: Cow<'_, [u8]> = Cow::Owned(vec);
-    let reader: ByteReader<_> = ByteReader::new(cow);
+    let reader: ByteReader = ByteReader::new(cow.borrow());
     assert_eq!(reader.endian(), Endian::Native);
 }
 
@@ -60,8 +55,8 @@ fn read_number() -> Result<()> {
         };
     }
 
-    let mut lreader: ByteReader<_> = ByteReader::with_endian(data, Endian::Little);
-    let mut breader: ByteReader<_> = ByteReader::with_endian(data, Endian::Big);
+    let mut lreader: ByteReader = ByteReader::with_endian(&data, Endian::Little);
+    let mut breader: ByteReader = ByteReader::with_endian(&data, Endian::Big);
 
     test_number!(lreader, u8, 0x00)?;
     test_number!(breader, u8, 0x00)?;
@@ -94,8 +89,8 @@ fn read_zerosized() {
 
     static mut REC_DEPTH: u8 = 100;
 
-    impl Readable for ZeroSized {
-        fn read<T: AsRef<[u8]>>(mut s: bytecraft::reader::ReadStream<T>) -> Result<Self> {
+    impl<'a> Readable<'a> for ZeroSized {
+        fn read<'r>(mut s: bytecraft::reader::ReadStream<'a, 'r>) -> Result<Self> {
             if let Some(new) = unsafe { REC_DEPTH.checked_sub(1) } {
                 unsafe { REC_DEPTH = new };
             } else {
@@ -107,7 +102,7 @@ fn read_zerosized() {
         }
     }
 
-    let mut reader = ByteReader::new([0x01, 0x02]);
+    let mut reader: ByteReader = ByteReader::new(&[0x01, 0x02]);
     let _: ZeroSized = reader.read().unwrap();
     assert_eq!(reader.position(), 0);
 }
@@ -117,8 +112,8 @@ fn read_custom() -> Result<()> {
     #[derive(Debug, PartialEq, Eq)]
     pub struct LableValue(u32, i8, [u16; 12]);
 
-    impl Readable for LableValue {
-        fn read<T: AsRef<[u8]>>(mut s: bytecraft::reader::ReadStream<T>) -> Result<Self> {
+    impl<'a> Readable<'a> for LableValue {
+        fn read<'r>(mut s: bytecraft::reader::ReadStream<'a, 'r>) -> Result<Self> {
             let (f1, f2, f3) = s.read::<(u32, i8, [u16; 12])>()?;
             Ok(Self(f1, f2, f3))
         }
@@ -131,8 +126,8 @@ fn read_custom() -> Result<()> {
         value: LableValue,
     }
 
-    impl Readable for Label {
-        fn read<T: AsRef<[u8]>>(mut s: bytecraft::reader::ReadStream<T>) -> Result<Self> {
+    impl<'a> Readable<'a> for Label {
+        fn read<'r>(mut s: bytecraft::reader::ReadStream<'a, 'r>) -> Result<Self> {
             let name_size: u32 = s.read()?;
             let name: &[u8] = s.read_exact(name_size as usize)?;
             let name: String = str::from_utf8(name).map_err(|_| Error::NotValid)?.into();
@@ -154,7 +149,7 @@ fn read_custom() -> Result<()> {
         0x00, 0x06, 0x00, 0x07, 0x00, 0x08, 0x00, 0x09, 0x00, 0x0A, 0x00, 0x0B, 0x00, 0x0C, 0x00,
     ];
 
-    let mut lreader: ByteReader<_> = ByteReader::with_endian(data, Endian::Little);
+    let mut lreader: ByteReader = ByteReader::with_endian(&data, Endian::Little);
 
     let label: Label = lreader.read()?;
 
@@ -167,7 +162,7 @@ fn read_custom() -> Result<()> {
         }
     );
 
-    let mut breader: ByteReader<_> = ByteReader::with_endian(data, Endian::Big);
+    let mut breader: ByteReader = ByteReader::with_endian(&data, Endian::Big);
 
     let res: Result<Label> = breader.read();
 
@@ -204,8 +199,8 @@ fn read_tree() -> Result<()> {
         }
     }
 
-    impl Readable for TreeNode {
-        fn read<T: AsRef<[u8]>>(mut s: bytecraft::reader::ReadStream<T>) -> Result<Self> {
+    impl<'a> Readable<'a> for TreeNode {
+        fn read<'r>(mut s: bytecraft::reader::ReadStream<'a, 'r>) -> Result<Self> {
             let val: u32 = s.read()?;
             let flg: u8 = s.read()?;
 
@@ -228,7 +223,7 @@ fn read_tree() -> Result<()> {
     }
 
     let data: [u8; 5] = [0x01, 0x00, 0x00, 0x00, 0x00];
-    let mut reader: ByteReader<_> = ByteReader::new(data);
+    let mut reader: ByteReader = ByteReader::new(&data);
     let ts: TreeNode = reader.read()?;
 
     assert_eq!(
@@ -241,7 +236,7 @@ fn read_tree() -> Result<()> {
     );
 
     let data: [u8; 10] = [0x01, 0x00, 0x00, 0x00, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00];
-    let mut reader: ByteReader<_> = ByteReader::new(data);
+    let mut reader: ByteReader = ByteReader::new(&data);
     let ts: TreeNode = reader.read()?;
 
     assert_eq!(
@@ -260,7 +255,7 @@ fn read_tree() -> Result<()> {
     let data: [u8; 15] = [
         0x01, 0x00, 0x00, 0x00, 0x03, 0x02, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00,
     ];
-    let mut reader: ByteReader<_> = ByteReader::new(data);
+    let mut reader: ByteReader = ByteReader::new(&data);
     let ts: TreeNode = reader.read()?;
 
     assert_eq!(
@@ -305,8 +300,8 @@ fn peek_tree() {
 
     static mut REC_DEPTH: u8 = 100;
 
-    impl Peekable for TreeNode {
-        fn peek<T: AsRef<[u8]>>(s: bytecraft::reader::PeekStream<T>) -> Result<Self> {
+    impl<'a> Peekable<'a> for TreeNode {
+        fn peek<'r>(s: bytecraft::reader::PeekStream<'a, 'r>) -> Result<Self> {
             if let Some(new) = unsafe { REC_DEPTH.checked_sub(1) } {
                 unsafe { REC_DEPTH = new };
             } else {
@@ -337,6 +332,59 @@ fn peek_tree() {
     let data: [u8; 15] = [
         0x01, 0x00, 0x00, 0x00, 0x03, 0x02, 0x00, 0x00, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00,
     ];
-    let reader: ByteReader<_> = ByteReader::new(data);
+    let reader: ByteReader = ByteReader::new(&data);
     let _ts: TreeNode = reader.peek().unwrap();
+}
+
+#[test]
+fn lifetimes() -> Result<()> {
+    let data: [u8; 100] = [0u8; 100];
+
+    #[derive(Debug, PartialEq)]
+    struct ParsedData<'a> {
+        f1: u32,
+        f2: i8,
+        hash: &'a [u8],
+    }
+
+    #[derive(Debug, PartialEq)]
+    struct MyStruct<'a> {
+        data: &'a [u8],
+        parsed: ParsedData<'a>,
+    }
+
+    impl<'a> Readable<'a> for ParsedData<'a> {
+        fn read<'r>(mut s: bytecraft::reader::ReadStream<'a, 'r>) -> Result<Self> {
+            let f1: u32 = s.read()?;
+            let f2: i8 = s.read()?;
+            let hash: &[u8] = s.read_exact(10)?;
+
+            Ok(Self { f1, f2, hash })
+        }
+    }
+
+    let v: MyStruct;
+
+    {
+        let mut reader: ByteReader = ByteReader::new(&data);
+        let p: ParsedData = reader.read()?;
+        v = MyStruct {
+            data: &data,
+            parsed: p,
+        };
+    }
+
+    assert_eq!(
+        v,
+        MyStruct {
+            data: &data,
+            parsed: ParsedData {
+                f1: 0,
+                f2: 0,
+                hash: &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            }
+        }
+    );
+
+    Ok(())
 }
