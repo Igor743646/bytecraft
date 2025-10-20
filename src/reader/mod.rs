@@ -9,9 +9,9 @@
 //!
 //! ## ByteReader
 //!
-//! `ByteReader<T>` is the primary type for reading binary data. It wraps any
-//! type `T` that implements `AsRef<[u8]>`, making it compatible with slices,
-//! vectors, strings, and custom buffer types.
+//! `ByteReader` is the primary type for reading binary data.
+//! It wraps a slice of bytes and allows you to operate on read data
+//! after the end of the reader's lifetime, as long as the read data exists.
 //!
 //! ## Stream Types
 //!
@@ -134,8 +134,9 @@
 //! // ASCII string reading
 //! let ascii_data = b"Hello World";
 //! let mut reader = ByteReader::new(&ascii_data[..]);
-//! let ascii_string = reader.read_ascii(5).unwrap();
+//! let ascii_string: &str = reader.read_ascii(5).unwrap();
 //! assert_eq!(ascii_string, "Hello");
+//! assert_eq!(reader.position(), 5);
 //!
 //! // UTF-8 string reading (using read_vec + manual conversion)
 //! let utf8_data = "Հի".as_bytes(); // "Hello" Armenian text
@@ -143,6 +144,7 @@
 //! let bytes = reader.read_vec(4).unwrap(); // "Հի" in UTF-8 is 4 bytes
 //! let utf8_string = String::from_utf8(bytes).unwrap();
 //! assert_eq!(utf8_string, "Հի");
+//! assert_eq!(reader.position(), 4);
 //! ```
 
 pub mod peekable;
@@ -157,23 +159,18 @@ use readable::Readable;
 
 /// A versatile binary data reader for parsing structured binary formats.
 ///
-/// `ByteReader<T>` provides a safe and efficient interface for reading binary
+/// `ByteReader` provides a safe and efficient interface for reading binary
 /// data from any source that can be represented as a byte slice. It maintains
 /// internal state including current position and endianness settings, and
 /// provides comprehensive error handling for boundary conditions.
 ///
-/// # Type Parameters
+/// # Lifetime Parameters
 ///
-/// - `T`: The underlying data source that implements `AsRef<[u8]>`
-///
-/// # Thread Safety
-///
-/// `ByteReader<T>` is `Send` and `Sync` when `T` is `Send` and `Sync`,
-/// making it suitable for concurrent usage scenarios.
+/// - `'a`: Lifetime of the underlying data source that represents a slice `&'a [u8]`
 ///
 /// # Examples
 ///
-/// Construct `ByteReader<T>` from commonly used types
+/// Construct `ByteReader` from commonly used types
 ///
 /// ```rust
 /// use std::borrow::Cow;
@@ -215,7 +212,7 @@ impl<'a> ByteReader<'a> {
     ///
     /// # Parameters
     ///
-    /// - `data`: The source data to read from. Must implement `AsRef<[u8]>`.
+    /// - `data`: The source data to read from
     ///
     /// # Returns
     ///
@@ -443,6 +440,108 @@ impl<'a> ByteReader<'a> {
         self.pos = std::cmp::min(self.pos.saturating_add(count), self.len());
     }
 
+    /// Aligns position upward to the specified power-of-2 boundary with bounds checking.
+    ///
+    /// # Parameters
+    /// - `ALIGNMENT`: The alignment boundary (must be a power of 2)
+    ///
+    /// # Returns
+    /// - `Ok(())` if alignment is successful
+    /// - `Error::OutOfBounds` if alignment would exceed data boundaries
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use bytecraft::reader::ByteReader;
+    ///
+    /// let mut buffer = [0u8; 16];
+    /// buffer[5] = 0xFF; // Some data at position 5
+    /// let mut reader = ByteReader::new(&mut buffer[..]);
+    /// reader.set_position(5);
+    ///
+    /// // Align to 8-byte boundary
+    /// reader.align_up::<8>().unwrap();
+    /// assert_eq!(reader.position(), 8);
+    ///
+    /// reader.set_position(9);
+    /// reader.align_up::<8>().unwrap();
+    /// assert_eq!(reader.position(), 16);
+    /// ```
+    pub fn align_up<const ALIGNMENT: usize>(&mut self) -> Result<()> {
+        const {
+            assert!(ALIGNMENT.is_power_of_two());
+        }
+        let pos: usize = self.position();
+        let pos: usize = (pos + (ALIGNMENT - 1)) & !(ALIGNMENT - 1);
+        self.set_position(pos)
+    }
+
+    /// Aligns position upward to the specified power-of-2 boundary, clamping to data end.
+    ///
+    /// Never fails - if alignment would exceed data boundaries, position is clamped.
+    ///
+    /// # Parameters
+    /// - `ALIGNMENT`: The alignment boundary (must be a power of 2)
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use bytecraft::reader::ByteReader;
+    ///
+    /// let mut buffer = [0u8; 10];
+    /// let mut reader = ByteReader::new(&mut buffer[..]);
+    /// reader.set_position(9);
+    ///
+    /// // Align to 8-byte boundary (would be 16, but clamped to 10)
+    /// reader.align_up_force::<8>();
+    /// assert_eq!(reader.position(), 10);
+    /// ```
+    pub fn align_up_force<const ALIGNMENT: usize>(&mut self) {
+        const {
+            assert!(ALIGNMENT.is_power_of_two());
+        }
+        let pos: usize = self.position();
+        let pos: usize = (pos + (ALIGNMENT - 1)) & !(ALIGNMENT - 1);
+        self.pos = pos.min(self.len());
+    }
+
+    /// Aligns position upward to the specified power-of-2 boundary with bounds checking.
+    ///
+    /// Calculates the next position aligned to the specified boundary and moves the
+    /// reader position there. The alignment must be a power of two.
+    ///
+    /// # Parameters
+    ///
+    /// - `alignment`: The alignment boundary in bytes (must be a power of 2)
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(())` if alignment is successful
+    /// - [`Error::NotValid`] if alignment is not a power of 2
+    /// - [`Error::OutOfBounds`] if alignment would exceed data boundaries
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use bytecraft::reader::ByteReader;
+    ///
+    /// let mut buffer = [0u8; 16];
+    /// let mut reader = ByteReader::new(&mut buffer[..]);
+    /// reader.set_position(5);
+    ///
+    /// reader.align_up_dynamic(8).unwrap(); // Align to 8-byte boundary
+    /// assert_eq!(reader.position(), 8);
+    /// ```
+    pub fn align_up_dynamic(&mut self, alignment: usize) -> Result<()> {
+        if !alignment.is_power_of_two() {
+            return Err(Error::NotValid);
+        }
+
+        let pos: usize = self.position();
+        let pos: usize = (pos + (alignment - 1)) & !(alignment - 1);
+        self.set_position(pos)
+    }
+
     /// Rewinds backward by the specified number of bytes with bounds checking.
     ///
     /// Decreases the value of the read position by the number of bytes.
@@ -617,17 +716,17 @@ impl<'a> ByteReader<'a> {
     /// assert_eq!(reader.as_slice(), &[1, 2, 3, 4, 5]);
     /// ```
     pub fn as_slice(&self) -> &'a [u8] {
-        &self.data
+        self.data
     }
 
     /// Consumes the reader and returns the underlying data.
     ///
     /// Takes ownership of the reader and returns the original data container.
-    /// This is useful when you're done reading and want to avoid copying data.
+    /// This is useful when you're done reading and want to drop reader explicitly.
     ///
     /// # Returns
     ///
-    /// The original data container `T`.
+    /// The original source data as slice.
     ///
     /// # Examples
     ///
@@ -863,6 +962,33 @@ impl<'a> ByteReader<'a> {
         R::read(ReadStream { reader: self })
     }
 
+    /// Peeks exactly `size` bytes without advancing position.
+    ///
+    /// Returns a reference to `size` bytes starting from the current position.
+    ///
+    /// # Parameters
+    ///
+    /// - `size`: The number of bytes to peek
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(slice)` containing the requested bytes
+    /// - [`Error::InsufficientData`] if not enough bytes are available
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use bytecraft::reader::ByteReader;
+    ///
+    /// let mut reader = ByteReader::new(&[1, 2, 3, 4, 5]);
+    /// let bytes = reader.peek_bytes(3).unwrap();
+    /// assert_eq!(bytes, &[1, 2, 3]);
+    /// assert_eq!(reader.position(), 0);
+    /// ```
+    pub fn peek_bytes(&mut self, size: usize) -> Result<&'a [u8]> {
+        self.peek_exact(size)
+    }
+
     /// Reads exactly `size` bytes and advances position.
     ///
     /// Returns a reference to `size` bytes starting from the current position
@@ -920,9 +1046,9 @@ impl<'a> ByteReader<'a> {
         self.read_exact(size).map(|bytes| Vec::from(bytes))
     }
 
-    /// Reads ASCII string of specified length and advances position.
+    /// Peeks ASCII string as `&str` of specified length and advances position.
     ///
-    /// Reads `size` bytes and attempts to interpret them as an ASCII string.
+    /// Peeks `size` bytes and attempts to interpret them as an ASCII string slice.
     /// Validates that all bytes are valid ASCII characters (0-127) and UTF-8 sequence.
     ///
     /// # Parameters
@@ -942,19 +1068,59 @@ impl<'a> ByteReader<'a> {
     /// use bytecraft::reader::ByteReader;
     ///
     /// let mut reader = ByteReader::new(b"Hello World");
-    /// let ascii = reader.read_ascii(5).unwrap();
+    /// let ascii: &str = reader.peek_ascii(5).unwrap();
     /// assert_eq!(ascii, "Hello");
     ///
     /// // Non-ASCII data returns error
     /// let mut reader = ByteReader::new(&[0xC0, 0x80][..]); // Invalid UTF-8
     /// assert!(reader.read_ascii(2).is_err());
     /// ```
-    pub fn read_ascii(&mut self, size: usize) -> Result<String> {
+    pub fn peek_ascii(&self, size: usize) -> Result<&'a str> {
+        match self
+            .peek_exact(size)
+            .map(|bytes| std::str::from_utf8(bytes))?
+        {
+            Ok(data) if data.is_ascii() => Ok(data),
+            Ok(_) => Err(Error::NotValidAscii),
+            Err(err) => Err(Error::NotValidUTF8(err)),
+        }
+    }
+
+    /// Reads ASCII string as `&str` of specified length and advances position.
+    ///
+    /// Reads `size` bytes and attempts to interpret them as an ASCII string slice.
+    /// Validates that all bytes are valid ASCII characters (0-127) and UTF-8 sequence.
+    ///
+    /// # Parameters
+    ///
+    /// - `size`: The number of bytes to read as ASCII
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(string)` containing the ASCII text
+    /// - [`Error::NotValidAscii`] if non-ASCII bytes are found
+    /// - [`Error::NotValidUTF8`] if bytes are not valid UTF-8
+    /// - [`Error::InsufficientData`] if not enough bytes are available
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use bytecraft::reader::ByteReader;
+    ///
+    /// let mut reader = ByteReader::new(b"Hello World");
+    /// let ascii: String = reader.read_ascii(5).unwrap().into();
+    /// assert_eq!(ascii, "Hello");
+    ///
+    /// // Non-ASCII data returns error
+    /// let mut reader = ByteReader::new(&[0xC0, 0x80][..]); // Invalid UTF-8
+    /// assert!(reader.read_ascii(2).is_err());
+    /// ```
+    pub fn read_ascii(&mut self, size: usize) -> Result<&'a str> {
         match self
             .read_exact(size)
             .map(|bytes| std::str::from_utf8(bytes))?
         {
-            Ok(data) if data.is_ascii() => Ok(String::from(data)),
+            Ok(data) if data.is_ascii() => Ok(data),
             Ok(_) => Err(Error::NotValidAscii),
             Err(err) => Err(Error::NotValidUTF8(err)),
         }
@@ -993,8 +1159,8 @@ impl<'a> ByteReader<'a> {
 ///
 /// # Type Parameters
 ///
-/// - `'a`: The lifetime of the borrowed `ByteReader`
-/// - `T`: The underlying data type (same as in `ByteReader<T>`)
+/// - `'a`: The lifetime of the borrowed data by `ByteReader`
+/// - `'r`: The lifetime of the borrowed `ByteReader` instance
 ///
 /// # Examples
 ///
@@ -1089,6 +1255,22 @@ impl<'a, 'r> PeekStream<'a, 'r> {
     pub fn peek<P: Peekable<'a>>(&self) -> Result<P> {
         self.reader.peek::<P>()
     }
+
+    /// Peeks ASCII string as `&str` of specified length and advances position.
+    ///
+    /// Delegates to the underlying reader's [`ByteReader::peek_ascii`] method.
+    ///
+    /// # Parameters
+    ///
+    /// - `size`: The number of bytes to peek at
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(string)` containing the requested ascii string
+    /// - An error if the value cannot be peeked
+    pub fn peek_ascii(&self, size: usize) -> Result<&'a str> {
+        self.reader.peek_ascii(size)
+    }
 }
 
 /// A mutable view into a `ByteReader` for reading operations.
@@ -1098,8 +1280,8 @@ impl<'a, 'r> PeekStream<'a, 'r> {
 ///
 /// # Type Parameters
 ///
-/// - `'a`: The lifetime of the borrowed `ByteReader`
-/// - `T`: The underlying data type (same as in `ByteReader<T>`)
+/// - `'a`: The lifetime of the borrowed data by `ByteReader`
+/// - `'r`: The lifetime of the borrowed `ByteReader` instance
 ///
 /// # Examples
 ///
@@ -1110,16 +1292,16 @@ impl<'a, 'r> PeekStream<'a, 'r> {
 ///     error::Result
 /// };
 ///
-/// struct MyStruct {
+/// struct MyStruct<'a> {
 ///     id: u32,
-///     count: u16,
+///     count: &'a [u8],
 /// }
 ///
-/// impl<'a> Readable<'a> for MyStruct {
+/// impl<'a> Readable<'a> for MyStruct<'a> {
 ///     fn read<'r>(mut stream: ReadStream<'a, 'r>) -> Result<Self> {
 ///         Ok(MyStruct {
 ///             id: stream.read()?,      // Read and consume u32
-///             count: stream.read()?,   // Read and consume u16
+///             count: stream.read_exact(2)?,   // Read and consume 2-byte slice
 ///         })
 ///     }
 /// }
@@ -1184,6 +1366,43 @@ impl<'a, 'r> ReadStream<'a, 'r> {
     /// is set to the end of data.
     pub fn skip_force(&mut self, count: usize) {
         self.reader.skip_force(count)
+    }
+
+    /// Aligns position upward to the specified power-of-2 boundary with bounds checking.
+    ///
+    /// # Parameters
+    /// - `ALIGNMENT`: The alignment boundary (must be a power of 2)
+    ///
+    /// # Returns
+    /// - `Ok(())` if alignment is successful
+    /// - `Error::OutOfBounds` if alignment would exceed data boundaries
+    pub fn align_up<const ALIGNMENT: usize>(&mut self) -> Result<()> {
+        self.reader.align_up::<ALIGNMENT>()
+    }
+
+    /// Aligns position upward to the specified power-of-2 boundary, clamping to data end.
+    ///
+    /// Never fails - if alignment would exceed data boundaries, position is clamped.
+    ///
+    /// # Parameters
+    /// - `ALIGNMENT`: The alignment boundary (must be a power of 2)
+    pub fn align_up_force<const ALIGNMENT: usize>(&mut self) {
+        self.reader.align_up_force::<ALIGNMENT>()
+    }
+
+    /// Aligns position upward to the specified power-of-2 boundary with bounds checking.
+    ///
+    /// # Parameters
+    ///
+    /// - `alignment`: The alignment boundary in bytes (must be a power of 2)
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(())` if alignment is successful
+    /// - [`Error::NotValid`] if alignment is not a power of 2
+    /// - [`Error::OutOfBounds`] if alignment would exceed data boundaries
+    pub fn align_up_dynamic(&mut self, alignment: usize) -> Result<()> {
+        self.reader.align_up_dynamic(alignment)
     }
 
     /// Peeks at exactly `size` bytes without advancing position.
@@ -1253,6 +1472,38 @@ impl<'a, 'r> ReadStream<'a, 'r> {
         self.reader.read::<R>()
     }
 
+    /// Peeks ASCII string as `&str` of specified length and advances position.
+    ///
+    /// Delegates to the underlying reader's [`ByteReader::peek_ascii`] method.
+    ///
+    /// # Parameters
+    ///
+    /// - `size`: The number of bytes to peek at
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(string)` containing the requested ascii string
+    /// - An error if the value cannot be peeked
+    pub fn peek_ascii(&self, size: usize) -> Result<&'a str> {
+        self.reader.peek_ascii(size)
+    }
+
+    /// Reads ASCII string as `&str` of specified length and advances position.
+    ///
+    /// Delegates to the underlying reader's [`ByteReader::read_ascii`] method.
+    ///
+    /// # Parameters
+    ///
+    /// - `size`: The number of bytes to read at
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(string)` containing the requested ascii string
+    /// - An error if the value cannot be read
+    pub fn read_ascii(&mut self, size: usize) -> Result<&'a str> {
+        self.reader.read_ascii(size)
+    }
+
     /// Reads exactly `size` bytes into a new `Vec<u8>` and advances position.
     ///
     /// Delegates to the underlying reader's [`ByteReader::read_vec`] method.
@@ -1297,5 +1548,31 @@ impl Read for ByteReader<'_> {
         buf[..to_read].copy_from_slice(&data[self.pos..self.pos + to_read]);
         self.pos += to_read;
         Ok(to_read)
+    }
+}
+
+impl core::fmt::Debug for ByteReader<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ByteReader")
+            .field("data", &self.data)
+            .field("pos", &self.pos)
+            .field("endian", &self.endian)
+            .finish()
+    }
+}
+
+impl core::fmt::Display for ByteReader<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "\n                  00 01 02 03 04 05 06 07  08 09 0A 0B 0C 0D 0E 0F  10 11 12 13 14 15 16 17  18 19 1A 1B 1C 1D 1E 1F")?;
+
+        for (idx, &char) in self.data.iter().enumerate() {
+            match (idx % 32, idx % 8) {
+                (_, 7) => write!(f, "{:02x}  ", char)?,
+                (0, _) => write!(f, "\n{:016x}: {:02x} ", idx / 32, char)?,
+                (_, _) => write!(f, "{:02x} ", char)?,
+            }
+        }
+
+        Ok(())
     }
 }
