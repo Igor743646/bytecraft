@@ -168,7 +168,7 @@ fn test_result_type_usage() -> Result<()> {
 #[allow(invalid_from_utf8)]
 fn test_custom_error_source() -> Result<()> {
     use bytecraft::error::Error as BCError;
-    use core::error::Error;
+    use std::error::Error;
 
     let utf8_error: std::str::Utf8Error = std::str::from_utf8(b"\xC0\x80").unwrap_err();
     let error: BCError = BCError::NotValidUTF8(utf8_error);
@@ -182,7 +182,7 @@ fn test_custom_error_source() -> Result<()> {
 #[test]
 fn test_error_source_none() -> Result<()> {
     use bytecraft::error::Error as BCError;
-    use core::error::Error;
+    use std::error::Error;
 
     let error: BCError = BCError::NotValid;
     let source: Option<_> = error.source();

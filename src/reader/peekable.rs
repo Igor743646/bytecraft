@@ -115,7 +115,7 @@
 //!             stream.read_exact(1)?; // Consume the flag
 //!             let len: u32 = stream.read()?;
 //!             let data: &[u8] = stream.read_exact(len as usize)?;
-//!             let text = str::from_utf8(data)
+//!             let text = std::str::from_utf8(data)
 //!                 .map_err(|e| Error::NotValidUTF8(e))?;
 //!             Ok(Message::Text(text.to_string()))
 //!         } else {

@@ -130,7 +130,9 @@ fn read_custom() -> Result<()> {
         fn read<'r>(mut s: bytecraft::reader::ReadStream<'a, 'r>) -> Result<Self> {
             let name_size: u32 = s.read()?;
             let name: &[u8] = s.read_exact(name_size as usize)?;
-            let name: String = str::from_utf8(name).map_err(|_| Error::NotValid)?.into();
+            let name: String = std::str::from_utf8(name)
+                .map_err(|_| Error::NotValid)?
+                .into();
 
             let timestamp: u64 = s.read()?;
             let value: LableValue = s.read()?;

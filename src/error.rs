@@ -25,7 +25,6 @@
 //! }
 //! ```
 
-use core::error;
 use core::str::Utf8Error;
 
 /// The error type for ByteCraft operations.
@@ -236,7 +235,7 @@ pub enum Error {
     /// use bytecraft::readable::Readable;
     /// use bytecraft::reader::ReadStream;
     /// use bytecraft::common::SeekFrom;
-    /// use core::error::Error as StdError;
+    /// use std::error::Error as StdError;
     ///
     /// #[derive(Debug)]
     /// struct CustomParseError(String);
@@ -264,7 +263,7 @@ pub enum Error {
     /// - User-defined `Readable` implementations returning custom errors
     /// - Domain-specific validation failures in complex data structures
     /// - Wrapping external library errors in ByteCraft's error system
-    Custom(Box<dyn error::Error + Send + Sync>),
+    Custom(Box<dyn std::error::Error + Send + Sync>),
 }
 
 /// A specialized `Result` type for ByteCraft operations.
@@ -343,7 +342,7 @@ impl core::fmt::Display for Error {
     }
 }
 
-impl core::error::Error for Error {
+impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Error::InsufficientData { .. } => None,

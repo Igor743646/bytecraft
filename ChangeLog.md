@@ -1,5 +1,9 @@
 # Change Log
 
+## 0.2.2 (20-10-2025)
+
+Downgrade rust minimal version to 1.80.0
+
 ## 0.2.1 (24-09-2025)
 
 Bug fix:

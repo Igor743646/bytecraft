@@ -236,7 +236,7 @@ use crate::reader::ReadStream;
 ///     fn read<'r>(mut stream: ReadStream<'a, 'r>) -> Result<Self> {
 ///         let len: u32 = stream.read()?;
 ///         let bytes: &[u8] = stream.read_exact(len as usize)?;
-///         let data = str::from_utf8(bytes)
+///         let data = std::str::from_utf8(bytes)
 ///             .map_err(|e| Error::NotValidUTF8(e))?;
 ///         Ok(LengthPrefixedString(data.to_string()))
 ///     }

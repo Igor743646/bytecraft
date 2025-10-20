@@ -950,7 +950,10 @@ impl<'a> ByteReader<'a> {
     /// assert!(reader.read_ascii(2).is_err());
     /// ```
     pub fn read_ascii(&mut self, size: usize) -> Result<String> {
-        match self.read_exact(size).map(|bytes| str::from_utf8(bytes))? {
+        match self
+            .read_exact(size)
+            .map(|bytes| std::str::from_utf8(bytes))?
+        {
             Ok(data) if data.is_ascii() => Ok(String::from(data)),
             Ok(_) => Err(Error::NotValidAscii),
             Err(err) => Err(Error::NotValidUTF8(err)),
