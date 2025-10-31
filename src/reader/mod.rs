@@ -1201,7 +1201,7 @@ impl<'a, 'r> PeekStream<'a, 'r> {
     ///
     /// # Returns
     ///
-    /// Slice of bytes &[[u8]].
+    /// Slice of bytes &[\[u8]].
     pub fn rest_bytes(&self) -> &[u8] {
         self.reader.rest_bytes()
     }
@@ -1323,11 +1323,16 @@ impl<'a, 'r> ReadStream<'a, 'r> {
         self.reader.endian()
     }
 
+    /// Sets the endianness to the underlying reader.
+    pub fn set_endian(&mut self, endian: Endian) {
+        self.reader.set_endian(endian);
+    }
+
     /// Returns a slice containing all remaining unread bytes.
     ///
     /// # Returns
     ///
-    /// Slice of bytes &[[u8]].
+    /// Slice of bytes &[\[u8]].
     pub fn rest_bytes(&self) -> &[u8] {
         self.reader.rest_bytes()
     }
