@@ -42,7 +42,7 @@ use core::fmt::Result;
 /// // Native endian - matches the host system's endianness
 /// let native = Endian::Native;
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Endian {
     /// Little endian byte order.
     ///
@@ -88,14 +88,47 @@ pub enum Endian {
     /// - On x86/x86-64: Equivalent to `Little`
     /// - On most ARM: Equivalent to `Little`  
     /// - On some embedded systems: May be `Big`
+    #[default]
     Native = 2,
 }
 
+/// Shorthand constant for `Endian::Little`.
 pub const LE: Endian = Endian::Little;
+
+/// Shorthand constant for `Endian::Big`.
 pub const BE: Endian = Endian::Big;
+
+/// Shorthand constant for `Endian::Native`.
 pub const NE: Endian = Endian::Native;
 
 impl Endian {
+    /// Determines the endianness based on a UTF-16 Byte Order Mark (BOM).
+    ///
+    /// This function checks the provided 2-byte array against known UTF-16 BOM patterns.
+    ///
+    /// # Arguments
+    ///
+    /// * `bytes` - A 2-byte array representing the potential BOM.
+    ///
+    /// # Returns
+    ///
+    /// * `Some(Endian::Big)` if the bytes match the UTF-16 Big Endian BOM (`[0xFE, 0xFF]`).
+    /// * `Some(Endian::Little)` if the bytes match the UTF-16 Little Endian BOM (`[0xFF, 0xFE]`).
+    /// * `None` if the bytes do not match any known UTF-16 BOM pattern.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bytecraft::common::{Endian, LE, BE};
+    ///
+    /// let big_bom = [0xFE, 0xFF];
+    /// let little_bom = [0xFF, 0xFE];
+    /// let no_bom = [0x00, 0x00];
+    ///
+    /// assert_eq!(Endian::from_utf16_bom(big_bom), Some(BE));
+    /// assert_eq!(Endian::from_utf16_bom(little_bom), Some(LE));
+    /// assert_eq!(Endian::from_utf16_bom(no_bom), None);
+    /// ```
     pub fn from_utf16_bom(bytes: [u8; 2]) -> Option<Self> {
         match bytes {
             [0xFE, 0xFF] => Some(Endian::Big),
@@ -104,6 +137,23 @@ impl Endian {
         }
     }
 
+    /// Generates the corresponding UTF-16 Byte Order Mark (BOM) bytes for the given endianness.
+    ///
+    /// # Returns
+    ///
+    /// * `[0xFE, 0xFF]` for `Endian::Big`.
+    /// * `[0xFF, 0xFE]` for `Endian::Little`.
+    /// * `[0xFE, 0xFF]` for `Endian::Native` if the target system is big-endian.
+    /// * `[0xFF, 0xFE]` for `Endian::Native` if the target system is little-endian.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bytecraft::common::{Endian, LE, BE};
+    ///
+    /// assert_eq!(BE.into_utf16_bom(), [0xFE, 0xFF]);
+    /// assert_eq!(LE.into_utf16_bom(), [0xFF, 0xFE]);
+    /// ```
     pub fn into_utf16_bom(&self) -> [u8; 2] {
         match self {
             Endian::Big => [0xFE, 0xFF],
@@ -115,6 +165,33 @@ impl Endian {
         }
     }
 
+    /// Determines the endianness based on a UTF-32 Byte Order Mark (BOM).
+    ///
+    /// This function checks the provided 4-byte array against known UTF-32 BOM patterns.
+    ///
+    /// # Arguments
+    ///
+    /// * `bytes` - A 4-byte array representing the potential BOM.
+    ///
+    /// # Returns
+    ///
+    /// * `Some(Endian::Big)` if the bytes match the UTF-32 Big Endian BOM (`[0x00, 0x00, 0xFE, 0xFF]`).
+    /// * `Some(Endian::Little)` if the bytes match the UTF-32 Little Endian BOM (`[0xFF, 0xFE, 0x00, 0x00]`).
+    /// * `None` if the bytes do not match any known UTF-32 BOM pattern.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bytecraft::common::{Endian, LE, BE};
+    ///
+    /// let big_bom = [0x00, 0x00, 0xFE, 0xFF];
+    /// let little_bom = [0xFF, 0xFE, 0x00, 0x00];
+    /// let no_bom = [0x00, 0x00, 0x00, 0x00];
+    ///
+    /// assert_eq!(Endian::from_utf32_bom(big_bom), Some(BE));
+    /// assert_eq!(Endian::from_utf32_bom(little_bom), Some(LE));
+    /// assert_eq!(Endian::from_utf32_bom(no_bom), None);
+    /// ```
     pub fn from_utf32_bom(bytes: [u8; 4]) -> Option<Self> {
         match bytes {
             [0x00, 0x00, 0xFE, 0xFF] => Some(Endian::Big),
@@ -123,6 +200,23 @@ impl Endian {
         }
     }
 
+    /// Generates the corresponding UTF-32 Byte Order Mark (BOM) bytes for the given endianness.
+    ///
+    /// # Returns
+    ///
+    /// * `[0x00, 0x00, 0xFE, 0xFF]` for `Endian::Big`.
+    /// * `[0xFF, 0xFE, 0x00, 0x00]` for `Endian::Little`.
+    /// * `[0x00, 0x00, 0xFE, 0xFF]` for `Endian::Native` if the target system is big-endian.
+    /// * `[0xFF, 0xFE, 0x00, 0x00]` for `Endian::Native` if the target system is little-endian.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bytecraft::common::{Endian, LE, BE};
+    ///
+    /// assert_eq!(BE.into_utf32_bom(), [0x00, 0x00, 0xFE, 0xFF]);
+    /// assert_eq!(LE.into_utf32_bom(), [0xFF, 0xFE, 0x00, 0x00]);
+    /// ```
     pub fn into_utf32_bom(&self) -> [u8; 4] {
         match self {
             Endian::Big => [0x00, 0x00, 0xFE, 0xFF],
@@ -136,6 +230,15 @@ impl Endian {
 }
 
 impl Into<&'static str> for Endian {
+    /// Converts an `Endian` value into its string representation.
+    ///
+    /// This implementation provides a static string representation of the enum variant.
+    ///
+    /// # Returns
+    ///
+    /// * `"Endian::Little"` for `Endian::Little`.
+    /// * `"Endian::Big"` for `Endian::Big`.
+    /// * `"Endian::Native"` for `Endian::Native`.
     fn into(self) -> &'static str {
         match self {
             Endian::Little => "Endian::Little",
@@ -246,6 +349,13 @@ pub enum SeekFrom {
 }
 
 impl Into<String> for SeekFrom {
+    /// Converts a `SeekFrom` value into its string representation.
+    ///
+    /// This implementation formats the enum variant and its contained value into a `String`.
+    ///
+    /// # Returns
+    ///
+    /// A `String` in the format `"SeekFrom::Variant(value)"`.
     fn into(self) -> String {
         match self {
             SeekFrom::Start(shift) => format!("SeekFrom::Start({})", shift),
