@@ -42,7 +42,7 @@ use core::fmt::Result;
 /// // Native endian - matches the host system's endianness
 /// let native = Endian::Native;
 /// ```
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Endian {
     /// Little endian byte order.
     ///
@@ -57,7 +57,7 @@ pub enum Endian {
     /// // The value 0x1234 in little endian:
     /// // Memory: [0x34, 0x12]
     /// ```
-    Little,
+    Little = 0,
 
     /// Big endian byte order.
     ///
@@ -73,7 +73,7 @@ pub enum Endian {
     /// // The value 0x1234 in big endian:
     /// // Memory: [0x12, 0x34]
     /// ```
-    Big,
+    Big = 1,
 
     /// Native endian byte order.
     ///
@@ -88,24 +88,67 @@ pub enum Endian {
     /// - On x86/x86-64: Equivalent to `Little`
     /// - On most ARM: Equivalent to `Little`  
     /// - On some embedded systems: May be `Big`
-    Native,
+    Native = 2,
 }
 
-impl Debug for Endian {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        let val: &'static str = match &self {
-            Endian::Little => "Endian(Little)",
-            Endian::Big => "Endian(Big)",
-            Endian::Native => "Endian(Native)",
-        };
+pub const LE: Endian = Endian::Little;
+pub const BE: Endian = Endian::Big;
+pub const NE: Endian = Endian::Native;
 
-        f.pad(val)
+impl Endian {
+    pub fn from_utf16_bom(bytes: [u8; 2]) -> Option<Self> {
+        match bytes {
+            [0xFE, 0xFF] => Some(Endian::Big),
+            [0xFF, 0xFE] => Some(Endian::Little),
+            _ => None,
+        }
+    }
+
+    pub fn into_utf16_bom(&self) -> [u8; 2] {
+        match self {
+            Endian::Big => [0xFE, 0xFF],
+            Endian::Little => [0xFF, 0xFE],
+            #[cfg(target_endian = "big")]
+            Endian::Native => [0xFE, 0xFF],
+            #[cfg(target_endian = "little")]
+            Endian::Native => [0xFF, 0xFE],
+        }
+    }
+
+    pub fn from_utf32_bom(bytes: [u8; 4]) -> Option<Self> {
+        match bytes {
+            [0x00, 0x00, 0xFE, 0xFF] => Some(Endian::Big),
+            [0xFF, 0xFE, 0x00, 0x00] => Some(Endian::Little),
+            _ => None,
+        }
+    }
+
+    pub fn into_utf32_bom(&self) -> [u8; 4] {
+        match self {
+            Endian::Big => [0x00, 0x00, 0xFE, 0xFF],
+            Endian::Little => [0xFF, 0xFE, 0x00, 0x00],
+            #[cfg(target_endian = "big")]
+            Endian::Native => [0x00, 0x00, 0xFE, 0xFF],
+            #[cfg(target_endian = "little")]
+            Endian::Native => [0xFF, 0xFE, 0x00, 0x00],
+        }
+    }
+}
+
+impl Into<&'static str> for Endian {
+    fn into(self) -> &'static str {
+        match self {
+            Endian::Little => "Endian::Little",
+            Endian::Big => "Endian::Big",
+            Endian::Native => "Endian::Native",
+        }
     }
 }
 
 impl Display for Endian {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        <Endian as Debug>::fmt(&self, f)
+        let val: &'static str = (*self).into();
+        core::fmt::Display::fmt(val, f)
     }
 }
 
@@ -136,7 +179,7 @@ impl Display for Endian {
 /// // Seek 10 bytes backward from end
 /// reader.seek(SeekFrom::End(-10)).unwrap();
 /// ```
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SeekFrom {
     /// Seek from the beginning of the data stream.
     ///
@@ -202,20 +245,19 @@ pub enum SeekFrom {
     Current(isize),
 }
 
-impl Debug for SeekFrom {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        let val: &str = match &self {
-            SeekFrom::Start(shift) => &format!("SeekFrom::Start({})", shift),
-            SeekFrom::End(shift) => &format!("SeekFrom::End({})", shift),
-            SeekFrom::Current(shift) => &format!("SeekFrom::Current({})", shift),
-        };
-
-        f.pad(val)
+impl Into<String> for SeekFrom {
+    fn into(self) -> String {
+        match self {
+            SeekFrom::Start(shift) => format!("SeekFrom::Start({})", shift),
+            SeekFrom::End(shift) => format!("SeekFrom::End({})", shift),
+            SeekFrom::Current(shift) => format!("SeekFrom::Current({})", shift),
+        }
     }
 }
 
 impl Display for SeekFrom {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        <SeekFrom as Debug>::fmt(&self, f)
+        let val: String = (*self).into();
+        std::fmt::Display::fmt(&val, f)
     }
 }
