@@ -1,6 +1,17 @@
 # Change Log
 
-## 0.2.2 (20-10-2025)
+## 0.2.4 (31-10-2025)
+
+Endian API improvements:
+
+* Constants LE - Little Endian, BE - Big Endian, NE - Native Endian
+* Endian conversion function from/into UTF-16/UTF-32 BOM:
+    * from_utf16_bom(bytes: [u8; 2]) -> Option<Endian>
+    * into_utf16_bom(&self) -> [u8; 2]
+    * from_utf32_bom(bytes: [u8; 4]) -> Option<Endian>
+    * into_utf32_bom(&self) -> [u8; 4]
+
+## 0.2.3 (20-10-2025)
 
 Downgrade rust minimal version to 1.80.0
 
