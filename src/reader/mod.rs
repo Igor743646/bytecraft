@@ -1537,6 +1537,24 @@ impl PartialEq for ByteReader<'_> {
     }
 }
 
+impl<'a> From<&'a [u8]> for ByteReader<'a> {
+    fn from(value: &'a [u8]) -> Self {
+        Self::new(value)
+    }
+}
+
+impl<'a> From<&'a Vec<u8>> for ByteReader<'a> {
+    fn from(value: &'a Vec<u8>) -> Self {
+        Self::new(value.as_slice())
+    }
+}
+
+impl<'a> From<&'a String> for ByteReader<'a> {
+    fn from(value: &'a String) -> Self {
+        Self::new(value.as_bytes())
+    }
+}
+
 impl Read for ByteReader<'_> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         if self.rest_len() == 0 {

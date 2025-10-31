@@ -1,4 +1,3 @@
-use std::borrow::Borrow;
 use std::borrow::Cow;
 
 use bytecraft::common::Endian;
@@ -19,16 +18,16 @@ fn constructor() {
     assert_eq!(reader.endian(), Endian::Native);
 
     let string: String = String::new();
-    let reader: ByteReader = ByteReader::new(string.as_bytes());
+    let reader: ByteReader = ByteReader::from(&string);
     assert_eq!(reader.endian(), Endian::Native);
 
     let vec: Vec<u8> = Vec::new();
     let cow: Cow<'_, [u8]> = Cow::Borrowed(&vec);
-    let reader: ByteReader = ByteReader::new(cow.borrow());
+    let reader: ByteReader = ByteReader::new(&cow);
     assert_eq!(reader.endian(), Endian::Native);
 
     let cow: Cow<'_, [u8]> = Cow::Owned(vec);
-    let reader: ByteReader = ByteReader::new(cow.borrow());
+    let reader: ByteReader = ByteReader::new(&cow);
     assert_eq!(reader.endian(), Endian::Native);
 }
 
