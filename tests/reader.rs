@@ -167,16 +167,13 @@ fn read_custom() -> Result<()> {
 
     let res: Result<Label> = breader.read();
 
-    assert_eq!(
-        matches!(
-            res,
-            Err(Error::InsufficientData {
-                requested: 0x4000000,
-                available: 41
-            })
-        ),
-        true
-    );
+    assert!(matches!(
+        res,
+        Err(Error::InsufficientData {
+            requested: 0x4000000,
+            available: 41
+        })
+    ));
 
     Ok(())
 }
@@ -460,8 +457,8 @@ fn fmt() -> Result<()> {
     let pdebug: String = format!("{:#?}", reader);
     let display: String = format!("{}", reader);
 
-    assert_eq!(debug, "ByteReader { data: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27], pos: 0, endian: Endian(Native) }");
-    assert_eq!(pdebug, "ByteReader {\n    data: [\n        1,\n        2,\n        3,\n        4,\n        5,\n        6,\n        7,\n        8,\n        9,\n        10,\n        11,\n        12,\n        13,\n        14,\n        15,\n        16,\n        17,\n        18,\n        19,\n        20,\n        21,\n        22,\n        23,\n        24,\n        25,\n        26,\n        27,\n    ],\n    pos: 0,\n    endian: Endian(Native),\n}");
+    assert_eq!(debug, "ByteReader { data: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27], pos: 0, endian: Native }");
+    assert_eq!(pdebug, "ByteReader {\n    data: [\n        1,\n        2,\n        3,\n        4,\n        5,\n        6,\n        7,\n        8,\n        9,\n        10,\n        11,\n        12,\n        13,\n        14,\n        15,\n        16,\n        17,\n        18,\n        19,\n        20,\n        21,\n        22,\n        23,\n        24,\n        25,\n        26,\n        27,\n    ],\n    pos: 0,\n    endian: Native,\n}");
     assert_eq!(display, "\n                  00 01 02 03 04 05 06 07  08 09 0A 0B 0C 0D 0E 0F  10 11 12 13 14 15 16 17  18 19 1A 1B 1C 1D 1E 1F\n0000000000000000: 01 02 03 04 05 06 07 08  09 0a 0b 0c 0d 0e 0f 10  11 12 13 14 15 16 17 18  19 1a 1b ");
 
     println!("{}", display);

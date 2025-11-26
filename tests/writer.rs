@@ -13,8 +13,7 @@ fn constructor() {
     let writer: ByteWriter<_> = ByteWriter::new(slice);
     assert_eq!(writer.endian(), Endian::Native);
 
-    let mut vec: Vec<u8> = Vec::new();
-    vec.resize(10, 0);
+    let mut vec: Vec<u8> = vec![0; 10];
     let writer: ByteWriter<_> = ByteWriter::new(&mut vec);
     assert_eq!(writer.endian(), Endian::Native);
     let writer: ByteWriter<_> = ByteWriter::new(vec);

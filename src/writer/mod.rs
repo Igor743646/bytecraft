@@ -195,7 +195,7 @@ use writable::Writable;
 /// # Examples
 ///
 /// See the [module-level documentation](self) for comprehensive examples.
-#[derive(Debug, Eq, Hash)]
+#[derive(Debug, Eq)]
 pub struct ByteWriter<T: AsRef<[u8]> + AsMut<[u8]>> {
     data: T,
     pos: usize,
@@ -554,7 +554,7 @@ impl<T: AsRef<[u8]> + AsMut<[u8]>> ByteWriter<T> {
     /// ```
     pub fn seek(&mut self, pos: SeekFrom) -> Result<usize> {
         let new_pos: usize = match pos {
-            SeekFrom::Start(n) => n as usize,
+            SeekFrom::Start(n) => n,
             SeekFrom::End(n) if n > 0 => {
                 let n: usize = n as usize;
                 return Err(Error::OutOfBounds {
@@ -1114,9 +1114,15 @@ impl<T: AsRef<[u8]> + AsMut<[u8]>> PartialEq for ByteWriter<T> {
     }
 }
 
-impl<'a, T: AsRef<[u8]> + AsMut<[u8]>> From<T> for ByteWriter<T> {
+impl<T: AsRef<[u8]> + AsMut<[u8]>> From<T> for ByteWriter<T> {
     fn from(value: T) -> Self {
         Self::new(value)
+    }
+}
+
+impl<T: AsRef<[u8]> + AsMut<[u8]> + std::hash::Hash> std::hash::Hash for ByteWriter<T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.data.hash(state);
     }
 }
 

@@ -229,7 +229,7 @@ impl Endian {
     }
 }
 
-impl Into<&'static str> for Endian {
+impl From<Endian> for &'static str {
     /// Converts an `Endian` value into its string representation.
     ///
     /// This implementation provides a static string representation of the enum variant.
@@ -239,8 +239,8 @@ impl Into<&'static str> for Endian {
     /// * `"Endian::Little"` for `Endian::Little`.
     /// * `"Endian::Big"` for `Endian::Big`.
     /// * `"Endian::Native"` for `Endian::Native`.
-    fn into(self) -> &'static str {
-        match self {
+    fn from(val: Endian) -> Self {
+        match val {
             Endian::Little => "Endian::Little",
             Endian::Big => "Endian::Big",
             Endian::Native => "Endian::Native",
@@ -348,7 +348,7 @@ pub enum SeekFrom {
     Current(isize),
 }
 
-impl Into<String> for SeekFrom {
+impl From<SeekFrom> for String {
     /// Converts a `SeekFrom` value into its string representation.
     ///
     /// This implementation formats the enum variant and its contained value into a `String`.
@@ -356,8 +356,8 @@ impl Into<String> for SeekFrom {
     /// # Returns
     ///
     /// A `String` in the format `"SeekFrom::Variant(value)"`.
-    fn into(self) -> String {
-        match self {
+    fn from(val: SeekFrom) -> Self {
+        match val {
             SeekFrom::Start(shift) => format!("SeekFrom::Start({})", shift),
             SeekFrom::End(shift) => format!("SeekFrom::End({})", shift),
             SeekFrom::Current(shift) => format!("SeekFrom::Current({})", shift),

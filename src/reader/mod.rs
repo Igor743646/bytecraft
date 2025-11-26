@@ -637,7 +637,7 @@ impl<'a> ByteReader<'a> {
     /// ```
     pub fn seek(&mut self, pos: SeekFrom) -> Result<usize> {
         let new_pos: usize = match pos {
-            SeekFrom::Start(n) => n as usize,
+            SeekFrom::Start(n) => n,
             SeekFrom::End(n) if n > 0 => {
                 let n: usize = n as usize;
                 return Err(Error::OutOfBounds {
@@ -1043,7 +1043,7 @@ impl<'a> ByteReader<'a> {
     /// assert_eq!(reader.position(), 3);
     /// ```
     pub fn read_vec(&mut self, size: usize) -> Result<Vec<u8>> {
-        self.read_exact(size).map(|bytes| Vec::from(bytes))
+        self.read_exact(size).map(Vec::from)
     }
 
     /// Peeks ASCII string as `&str` of specified length and advances position.
@@ -1566,7 +1566,7 @@ impl Read for ByteReader<'_> {
             return Ok(0);
         }
 
-        let data: &[u8] = self.data.as_ref().as_ref();
+        let data: &[u8] = self.data;
         let to_read: usize = std::cmp::min(self.rest_len(), buf.len());
         buf[..to_read].copy_from_slice(&data[self.pos..self.pos + to_read]);
         self.pos += to_read;
